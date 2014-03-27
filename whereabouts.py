@@ -137,7 +137,7 @@ class MigrationMonitor():
         
     def get_migrants(self, present_fitbits):
         present_owners = self.get_device_owners(present_fitbits)
-        print("Current occupants:")
+        print("Current occupants: {}".format(strftime("%Y-%m-%d %H:%M:%S")))
         for p in present_owners:
             print(" " + str(p))
             # this takes care of people who card in and then whose fitbit shows up
@@ -221,7 +221,7 @@ class PollingMigrationMonitor(Thread, MigrationMonitor):
 
     def run(self):
         while not self.cancelled:
-            print("\nPolling")
+            print("\nPolling {}".format(strftime("%Y-%m-%d %H:%M:%S")))
             self.update()
             sleep(self.interval_secs)
 
