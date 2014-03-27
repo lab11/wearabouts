@@ -93,15 +93,29 @@ def get_door_sensors():
 def sanitize(device_id):
     return device_id.replace(":", "").upper()
 
+def get_real_name(uniqname):
+    real_name = "Unknown Name"
+    f = open(DEVICE_MAP_FILE)
+    contents = f.read()
+    f.close()
+    contents = contents.replace("\n", "")
+    contents = contents.replace("\t", "")
+    device_maps = json.loads(contents)
+    for device_map in device_maps:
+        if "uniqname" in device_map and device_map["uniqname"] == uniqname:
+            real_name = device_map["owner"]
+    return real_name   
+
 class MigrationMonitor():
     last_seen_owners = None
+    last_seen_rfids = {} #keep these around for a scan
 
     def update(self):
         # check for present fitbits.
         present_fitbits = self.get_present_fitbits()
         # match fitbit list against known list
         migrants = self.get_migrants(present_fitbits)
-        # send these changes to gatd
+        # send these changes to GATD
 
     def get_present_fitbits(self):
         present_fitbits = []
@@ -120,16 +134,27 @@ class MigrationMonitor():
         
     def get_migrants(self, present_fitbits):
         present_owners = self.get_device_owners(present_fitbits)
-        print(present_owners)
+        print("Current occupants:")
+        for p in present_owners:
+            print(" " + str(p))
+            # this takes care of people who card in and then whose fitbit shows up
+            if p in self.last_seen_rfids and p not in self.last_seen_owners:
+                self.last_seen_owners.append(p)
+                del self.last_seen_rfids[p]
         if self.last_seen_owners != None:
             appeared = [p for p in present_owners if p not in self.last_seen_owners]
             disappeared = [p for p in self.last_seen_owners if p not in present_owners]
+            for p in self.last_seen_rfids:
+                if self.last_seen_rfids[p] == 0:
+                    del self.last_seen_rfids[p]
+                else:
+                    self.last_seen_rfids[p] -= 1
             #debug
             for p in appeared:
-                print(str(p) + " has entered " + str(LOCATION))
+                print("\n" + str(p) + " has entered " + str(LOCATION))
             #debug
             for p in disappeared:
-                print(str(p) + " has left " + str(LOCATION)) 
+                print("\n" + str(p) + " has left " + str(LOCATION)) 
         self.last_seen_owners = present_owners
 
     def get_device_owners(self, devices):
@@ -157,18 +182,30 @@ class EventDrivenMigrationMonitor (sioc.BaseNamespace, MigrationMonitor):
     def on_connect (self):
         stream_namespace.emit('query', query)
 
-    # what if door is propped open?
     def on_data (self, *args):
         pkt = args[0]
-        if pkt['type'] == 'door_close':
-            sleep(20) #give them 20 seconds to make a clean getaway
-        print(pkt['type'].replace('_', ' ').capitalize() + " (" + str(LOCATION) + ")")
-        self.update()
+        msg_type = pkt['type']
+        print("\n" + pkt['type'].replace('_', ' ').capitalize() + " (" + str(LOCATION) + ")")
+        # people leaving
+        if msg_type == 'door_close':
+            self.update() # enough latency due to multiple checks that they have enough time to escape
+        # people entering. Covers folks who didn't swipe their RFID card (multiple people, keys, etc.)
+        #elif msg_type == 'door_open':
+        #    self.update()
+        # people entering. Covers the person who carded in (way faster than finding fitbit)
+        elif pkt['type'] == 'rfid':
+            person = get_real_name(pkt['uniqname'])
+            if person not in self.last_seen_owners:
+                self.last_seen_rfids[person] = 1 #number of scans to remember their entry
+                print(person + " has entered " + str(LOCATION) + "\n")
+                #send to GATD
+            self.update()
 
 
 # looks for migration events periodically 
 # i.e., does not require a door sensor
 class PollingMigrationMonitor(Thread, MigrationMonitor):
+
     def __init__(self, interval_secs):
         # thread stuff
         super(PollingMigrationMonitor, self).__init__()
