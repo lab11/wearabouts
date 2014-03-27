@@ -96,6 +96,9 @@ def get_door_sensors():
 def sanitize(device_id):
     return device_id.replace(":", "").upper()
 
+def cur_datetime():
+    return strftime("%m/%d/%Y %H:%M")
+
 def get_real_name(uniqname):
     real_name = "Unknown Name"
     f = open(DEVICE_MAP_FILE)
@@ -138,26 +141,34 @@ class MigrationMonitor():
     def get_migrants(self, present_fitbits):
         present_owners = self.get_device_owners(present_fitbits)
         print("Current occupants:")
+        if present_owners == []:
+            print("None.")
         for p in present_owners:
             print(" " + str(p))
+            delete_list = []
             # this takes care of people who card in and then whose fitbit shows up
             if p in self.last_seen_rfids and p not in self.last_seen_owners:
                 self.last_seen_owners.append(p)
+                delete_list.append(p)
+            for p in delete_list:
                 del self.last_seen_rfids[p]
         if self.last_seen_owners != None:
             appeared = [p for p in present_owners if p not in self.last_seen_owners]
             disappeared = [p for p in self.last_seen_owners if p not in present_owners]
+            delete_list = []
             for p in self.last_seen_rfids:
                 if self.last_seen_rfids[p] == 0:
-                    del self.last_seen_rfids[p]
+                    delete_list.append(p)
                 else:
                     self.last_seen_rfids[p] -= 1
+            for p in delete_list:
+                del self.last_seen_rfids[p]
             #debug
             for p in appeared:
-                print("\n" + strftime("%m/%d/%Y %H:%M") + ": " + str(p) + " has entered " + str(LOCATION))
+                print("\n" + cur_datetime() + ": " + str(p) + " has entered " + str(LOCATION) + "\n")
             #debug
             for p in disappeared:
-                print("\n" + strftime("%m/%d/%Y %H:%M") + ": " + str(p) + " has left " + str(LOCATION)) 
+                print("\n" + cur_datetime() + ": " + str(p) + " has left " + str(LOCATION) + "\n") 
         self.last_seen_owners = present_owners
 
     def get_device_owners(self, devices):
@@ -188,7 +199,7 @@ class EventDrivenMigrationMonitor (sioc.BaseNamespace, MigrationMonitor):
     def on_data (self, *args):
         pkt = args[0]
         msg_type = pkt['type']
-        print("\n" + pkt['type'].replace('_', ' ').capitalize() + " (" + str(LOCATION) + ")")
+        print(cur_datetime() + ": " + pkt['type'].replace('_', ' ').capitalize() + " (" + str(LOCATION) + ")")
         # people leaving
         if msg_type == 'door_close':
             self.update() # enough latency due to multiple checks that they have enough time to escape
@@ -200,7 +211,7 @@ class EventDrivenMigrationMonitor (sioc.BaseNamespace, MigrationMonitor):
             person = get_real_name(pkt['uniqname'])
             if self.last_seen_owners != None and person not in self.last_seen_owners:
                 self.last_seen_rfids[person] = 1 #number of scans to remember their entry
-                print(strftime("%m/%d/%Y %H:%M") + ": " + person + " has entered " + str(LOCATION) + "\n")
+                print("\n" + cur_datetime() + ": " + person + " has entered " + str(LOCATION) + "\n")
                 #send to GATD
             self.update()
 
