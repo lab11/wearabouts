@@ -75,8 +75,8 @@ def main():
     # periodic polling only
     else:
         print("Starting polling migration monitor")
-        #PollingMigrationMonitor(30*60) # poll every 30 mins + time to find devices
-        PollingMigrationMonitor(1)
+        PollingMigrationMonitor(30*60) # poll every 30 mins + time to find devices
+        #PollingMigrationMonitor(1)
     while(True):
         pass
 
