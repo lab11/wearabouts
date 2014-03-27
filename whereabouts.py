@@ -6,6 +6,7 @@ import sys
 from threading import Thread
 import fitbitfinder
 from time import sleep
+from time import strftime
 
 try:
     import socketIO_client as sioc
@@ -151,10 +152,10 @@ class MigrationMonitor():
                     self.last_seen_rfids[p] -= 1
             #debug
             for p in appeared:
-                print("\n" + str(p) + " has entered " + str(LOCATION))
+                print("\n" + strftime("%m/%d/%Y %H:%M") + ": " + str(p) + " has entered " + str(LOCATION))
             #debug
             for p in disappeared:
-                print("\n" + str(p) + " has left " + str(LOCATION)) 
+                print("\n" + strftime("%m/%d/%Y %H:%M") + ": " + str(p) + " has left " + str(LOCATION)) 
         self.last_seen_owners = present_owners
 
     def get_device_owners(self, devices):
@@ -190,14 +191,14 @@ class EventDrivenMigrationMonitor (sioc.BaseNamespace, MigrationMonitor):
         if msg_type == 'door_close':
             self.update() # enough latency due to multiple checks that they have enough time to escape
         # people entering. Covers folks who didn't swipe their RFID card (multiple people, keys, etc.)
-        #elif msg_type == 'door_open':
-        #    self.update()
+        elif msg_type == 'door_open':
+            self.update()
         # people entering. Covers the person who carded in (way faster than finding fitbit)
         elif pkt['type'] == 'rfid':
             person = get_real_name(pkt['uniqname'])
-            if person not in self.last_seen_owners:
+            if self.last_seen_owners != None and person not in self.last_seen_owners:
                 self.last_seen_rfids[person] = 1 #number of scans to remember their entry
-                print(person + " has entered " + str(LOCATION) + "\n")
+                print(strftime("%m/%d/%Y %H:%M") + ": " + person + " has entered " + str(LOCATION) + "\n")
                 #send to GATD
             self.update()
 
