@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+# TODO: periodic polling, even if low frequency, would be super convenient.
+
 import IPy
 import json
 import sys
@@ -70,7 +72,7 @@ def main():
         stream_namespace = socketIO.define(EventDrivenMigrationMonitor,
             '/{}'.format(SOCKETIO_NAMESPACE))
         socketIO.wait()
-    # periodic polling logic
+    # periodic polling only
     else:
         print("Starting polling migration monitor")
         #PollingMigrationMonitor(30*60) # poll every 30 mins + time to find devices
@@ -219,6 +221,7 @@ class PollingMigrationMonitor(Thread, MigrationMonitor):
 
     def run(self):
         while not self.cancelled:
+            print("\nPolling")
             self.update()
             sleep(self.interval_secs)
 
