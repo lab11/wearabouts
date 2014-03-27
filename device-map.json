@@ -1,0 +1,5 @@
+[
+	{"device": "4D:8D:0D:8C:B7:EE", "descr": "fitbit one", "owner": "Brad Campbell"},
+	{"device": "27:E7:8B:1E:97:F9", "descr": "fitbit one", "owner": "Branden Ghena"},
+	{"device": "", "descr": "door sensor", "location": "4908"}
+]
