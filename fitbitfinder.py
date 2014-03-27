@@ -29,6 +29,10 @@ def discover_fitbits():
     except NoDongleException:
         print("No dongle connected, aborting")
         return
+    except PermissionDeniedException:
+        print(PERMISSION_DENIED_HELP)
+        return
+
     fitbit = FitbitClient(dongle)
     fitbit.disconnect()
     fitbit.getDongleInfo()
@@ -37,7 +41,8 @@ def discover_fitbits():
         trackers = [t for t in __discovery(dongle)]
 
     except TimeoutError:
-        logger.debug('Timeout trying to discover trackers')
+        print ("Timeout trying to discover trackers")
+        return
     except PermissionDeniedException:
         print PERMISSION_DENIED_HELP
         return
