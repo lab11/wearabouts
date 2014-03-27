@@ -143,15 +143,16 @@ class MigrationMonitor():
         print("Current occupants:")
         if present_owners == []:
             print("None.")
-        for p in present_owners:
-            print(" " + str(p))
-            delete_list = []
-            # this takes care of people who card in and then whose fitbit shows up
-            if p in self.last_seen_rfids and p not in self.last_seen_owners:
-                self.last_seen_owners.append(p)
-                delete_list.append(p)
-            for p in delete_list:
-                del self.last_seen_rfids[p]
+        else:
+            for p in present_owners:
+                print(" " + str(p))
+                delete_list = []
+                # this takes care of people who card in and then whose fitbit shows up
+                if p in self.last_seen_rfids and p not in self.last_seen_owners:
+                    self.last_seen_owners.append(p)
+                    delete_list.append(p)
+                for p in delete_list:
+                    del self.last_seen_rfids[p]
         if self.last_seen_owners != None:
             appeared = [p for p in present_owners if p not in self.last_seen_owners]
             disappeared = [p for p in self.last_seen_owners if p not in present_owners]
@@ -232,7 +233,7 @@ class PollingMigrationMonitor(Thread, MigrationMonitor):
 
     def run(self):
         while not self.cancelled:
-            print("\nPolling")
+            print("\nPolling {}".format(strftime("%Y-%m-%d %H:%M:%S")))
             self.update()
             sleep(self.interval_secs)
 
