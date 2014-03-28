@@ -1,7 +1,7 @@
 whereabouts
 ===========
 
-Semantic localization using fitbits
+Semantic heuristic localization using fitbits
 
 Requires:
  * fitbit wireless sync dongle

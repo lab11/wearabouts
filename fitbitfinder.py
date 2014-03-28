@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 
 # Script to find fitbits
 #   Returns Fitbit IDs and RSSI to the fitbit

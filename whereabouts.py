@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 
 # TODO: periodic polling, even if low frequency, would be super convenient.
 
