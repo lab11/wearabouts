@@ -15,9 +15,9 @@ from ctypes import c_byte
 import IPy
 import json
 import sys
-from threading import Thread
-from time import sleep
-from time import strftime
+from threading import Thread, Lock
+from time import sleep, strftime, time
+import urllib2
 
 try:
     from galileo import (PERMISSION_DENIED_HELP, FitBitDongle,
@@ -45,13 +45,20 @@ query = {'profile_id': 'U8H29zqH0i',
 stream_namespace = None
 
 USAGE = """
-Please specify location being monitored.
+To perform a one-time scan, specify 'test'
 
-if no door sensor is present at the specified location, 
-the program defaults to polling periodically.
+To perform continuous monitoring, please specify location being monitored.
+If no door sensor is present at the specified location, the program defaults
+to polling periodically.
+
+Locations should be specified in the format:
+    "University|Building|Room"
 
 Door sensors are available in the following locations:
 """
+
+mutex = Lock()
+last_discovery_time = 0
 
 # gets deployment location, picks door-triggered or polling monitor
 # depending on whether there is a door sensor available.
@@ -70,35 +77,43 @@ def main():
 
     door_sensors = get_door_sensors()
 
-#XXX: Update this to allow a TEST function
     # get location
     if len(sys.argv) != 2:
         print(USAGE)
         for sensor in door_sensors:
-            print("    " + sensor['location'])
+            print("    " + sensor['location_str'])
         print("")
         exit()
     else:
         LOCATION = sys.argv[1]
 
-    # if location has door sensor, trigger on it
+    if LOCATION == 'test':
+        print('Scanning for fitbits...')
+        test = FitbitMonitor()
+        present_fitbits = test.get_present_fitbits()
+        for key in present_fitbits.keys():
+            print(str(key) + ' : ' + str(present_fitbits[key]))
+        exit()
+
+    # also start periodic polling
+    print("\nStarting polling monitor")
+    PollingMonitor(30*60) # poll every 30 mins + time to find devices
+
+    # if location has door sensor, trigger on it as well
     for sensor in door_sensors:
-        if sensor['location'] == LOCATION:
+        if sensor['location_str'] == LOCATION:
             DOOR_TRIGGERED = True
             query['address'] = sensor['device_addr']
     
     # door/gatd triggered logic
     if DOOR_TRIGGERED:
-        print("Starting door-triggered monitor")
+        print("\nStarting door-triggered monitor")
         socketIO = sioc.SocketIO(SOCKETIO_HOST, SOCKETIO_PORT)
         stream_namespace = socketIO.define(EventDrivenMonitor,
             '/{}'.format(SOCKETIO_NAMESPACE))
         socketIO.wait()
 
-    # periodic polling only
-    else:
-        print("Starting polling monitor")
-        PollingMonitor(30*60) # poll every 30 mins + time to find devices
+    # loop forever while polling and possibly door callbacks are occurring
     while(True):
         pass
 
@@ -114,7 +129,7 @@ def get_door_sensors():
     for device_map in device_maps:
         if device_map["descr"] == "door sensor":
             door_sensors.append(device_map)
-    return door_sensors    
+    return door_sensors
 
 def sanitize(device_id):
     return device_id.replace(":", "").upper()
@@ -135,19 +150,46 @@ def get_real_name(uniqname):
             real_name = device_map["owner"]
     return real_name
 
-#XXX: Finish this
-def post_to_gatd(data):
+def post_to_gatd(fitbit_id, rssi):
+    global LOCATION
+
+    # Create standard data
+    data = {
+            'location_str' : LOCATION,
+            'fitbit_id' : fitbit_id,
+            'rssi' : rssi
+            }
+
     # This is the post address for fitbitLocator
+    print("starting post to GATD of" + str(json.dumps(data)))
     req = urllib2.Request('http://inductor.eecs.umich.edu:8081/dwgY2s6mEu')
-    response = urllib2.urlopen(req, data)
+    req.add_header('Content-Type', 'application/json')
+
+    # Actually post to GATD
+    response = urllib2.urlopen(req, json.dumps(data))
+    print("POST complete")
 
 class FitbitMonitor():
-    
+
     def update(self):
-        # check for present fitbits.
+        global mutex
+        global last_discovery_time
+
+        # take the mutex. This stops polling from conflicting with SocketIO
+        mutex.acquire()
+
+        # update discovery time
+        last_discovery_time = time()
+
+        # check for present fitbits
         present_fitbits = self.get_present_fitbits()
+
         # send data to GATD
-        print("Send things to GATD\n Send? " + str(present_fitbits))
+        for key,value in present_fitbits.items():
+            post_to_gatd(key, value)
+
+        # give up the mutex
+        mutex.release()
 
     def get_present_fitbits(self):
         present_fitbits = {}
@@ -216,30 +258,16 @@ class EventDrivenMonitor (sioc.BaseNamespace, FitbitMonitor):
         stream_namespace.emit('query', query)
 
     def on_connect (self):
-        # Always run one check at startup
-        self.update()
         stream_namespace.emit('query', query)
 
     def on_data (self, *args):
         pkt = args[0]
         msg_type = pkt['type']
         print(cur_datetime() + ": " + pkt['type'].replace('_', ' ').capitalize() + " (" + str(LOCATION) + ")")
-        # people leaving
-        if msg_type == 'door_close':
-            self.update() # enough latency due to multiple checks that they have enough time to escape
-        # people entering. Covers folks who didn't swipe their RFID card (multiple people, keys, etc.)
-        elif msg_type == 'door_open':
+        # people entering or leaving. Check fitbits after a delay
+        if msg_type == 'door_open':
+            sleep(45)
             self.update()
-        # people entering. Covers the person who carded in (way faster than finding fitbit)
-        elif pkt['type'] == 'rfid':
-            person = get_real_name(pkt['uniqname'])
-            if self.last_seen_owners != None and person not in self.last_seen_owners:
-                self.last_seen_rfids[person] = 1 #number of scans to remember their entry
-                print("\n" + cur_datetime() + ": " + person + " has entered " + str(LOCATION) + "\n")
-                #send to GATD
-                print("Send things to GATD\n Send? thing just printed")
-            self.update()
-
 
 # looks for fitbit events periodically 
 # i.e., does not require a door sensor
@@ -256,25 +284,19 @@ class PollingMonitor(Thread, FitbitMonitor):
         self.start()
 
     def run(self):
+        global last_discovery_time
+
         while not self.cancelled:
-            print("\nPolling {}".format(strftime("%Y-%m-%d %H:%M:%S")))
-            self.update()
+            if (time() - last_discovery_time) >= self.interval_secs:
+                print("\nPolling {}".format(strftime("%Y-%m-%d %H:%M:%S")))
+                self.update()
+            else:
+                print("\nPolling skipped due to recent sample")
             sleep(self.interval_secs)
+            
 
     def cancel(self):
         self.cancelled = True
-
-
-
-
-
-#XXX: Fix this
-#def main():
-#    trackers = discover_fitbits()
-#    if (trackers is None):
-#        return
-#    for [ID, RSSI] in trackers:
-#        print("ID: " + str(ID) + " RSSI: " + str(RSSI))
 
 if __name__ == "__main__":
     main()

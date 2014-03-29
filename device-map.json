@@ -10,5 +10,5 @@
 	{"device_addr": "", "descr": "", "owner": "Zakir Durumeric", "uniqname": "zakir"},
 	{"device_addr": "", "descr": "fitbit one", "owner": "Alex Halderman", "uniqname": "jhalderm"},
 	{"device_addr": "", "descr": "", "owner": "Prabal Dutta", "uniqname": "prabal"},
-	{"device_addr": "42540578174783136226833738538888517742", "descr": "door sensor", "location": "4908"}
+	{"device_addr": "42540578174783136226833738538888517742", "descr": "door sensor", "location_str": "University of Michigan|BBB|4908"}
 ]
