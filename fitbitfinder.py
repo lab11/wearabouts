@@ -20,9 +20,10 @@ from time import sleep, strftime, time
 import urllib2
 
 try:
-    from galileo import (PERMISSION_DENIED_HELP, FitBitDongle,
-            TimeoutError, NoDongleException, PermissionDeniedException,
-            FitbitClient, a2t)
+    import galileo.main
+    import galileo.dongle
+    import galileo.tracker
+    import galileo.utils
 except ImportError:
     print("Unable to find the Galileo Library")
     print("    sudo pip install galileo")
@@ -202,51 +203,65 @@ class FitbitMonitor():
             else:
                 present_fitbits = dict(fitbit_data.items() + present_fitbits.items())
         return present_fitbits
-        
+
+    # This function is nominally copied from galileo.main.syncAllTrackers()
+    #   with many calls that we don't care about removed
     def discover_fitbits(self):
-        dongle = FitBitDongle()
+        dongle = galileo.dongle.FitBitDongle()
         try:
             dongle.setup()
-        except NoDongleException:
+        except galileo.dongle.NoDongleException:
             print("No fitbit base station connected, aborting")
             return
-        except PermissionDeniedException:
-            print(PERMISSION_DENIED_HELP)
+        except galileo.dongle.PermissionDeniedException:
+            print(galileo.main.PERMISSION_DENIED_HELP)
             return
 
-        fitbit = FitbitClient(dongle)
+        fitbit = galileo.tracker.FitbitClient(dongle)
         fitbit.disconnect()
         fitbit.getDongleInfo()
         
         try:
             trackers = [t for t in self.discovery(dongle)]
 
-        except TimeoutError:
-            print ("Timeout trying to discover trackers")
+        except galileo.dongle.TimeoutError:
+            print("Timeout trying to discover trackers")
             return
-        except PermissionDeniedException:
-            print PERMISSION_DENIED_HELP
+        except galileo.dongle.PermissionDeniedException:
+            print(galileo.main.PERMISSION_DENIED_HELP)
             return
 
         return dict(trackers)
 
+    # This function is essentially a rewritten version of
+    #   galileo.tracker.discover() which only uses the parts we need
     def discovery(self, dongle):
-        dongle.ctrl_write([0x1a, 4, 0xba, 0x56, 0x89, 0xa6, 0xfa, 0xbf,
-                           0xa2, 0xbd, 1, 0x46, 0x7d, 0x6e, 0, 0,
-                           0xab, 0xad, 0, 0xfb, 1, 0xfb, 2, 0xfb,
-                           0xa0, 0x0f, 0, 0xd3, 0, 0, 0, 0])
-        dongle.ctrl_read() # StartDiscovery
-        d = dongle.ctrl_read(4000)
-        while d[0] != 3:
-            ID = sanitize(a2t(list(d[2:8])))
-            RSSI = c_byte(d[9]).value
+        # control settings
+        uuid = galileo.main.FitBitUUID
+        service1 = 0xfb00
+        write = 0xfb01
+        read = 0xfb02
+        minDuration = 4000
+
+        # start discovery
+        data = galileo.utils.i2lsba(uuid.int, 16)
+        for i in (service1, write, read, minDuration):
+            data += galileo.utils.i2lsba(i, 2)
+        dongle.ctrl_write(galileo.dongle.CM(4, data))
+
+        # find fitbits
+        while True:
+            d = dongle.ctrl_read(minDuration)
+            if galileo.dongle.isStatus(d, 'StartDiscovery', False): continue
+            elif d.INS == 2: break
+
+            ID = sanitize(galileo.utils.a2x(d.payload[:6], ''))
+            RSSI = c_byte(d.payload[7]).value
             yield [ID, RSSI]
-            d = dongle.ctrl_read(4000)
 
-        # tracker found, cancel discovery
-        dongle.ctrl_write([2, 5])
-        dongle.ctrl_read() # CancelDiscovery
-
+        # stop discovery
+        dongle.ctrl_write(galileo.dongle.CM(5))
+        galileo.dongle.isStatus(dongle.ctrl_read(), 'CancelDiscovery')
 
 
 # looks for fibit data after a door event occurs
