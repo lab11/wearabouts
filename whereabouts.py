@@ -6,174 +6,148 @@ import IPy
 import json
 import sys
 from threading import Thread
-import fitbitfinder
-from time import sleep
-from time import strftime
 
 try:
-    import socketIO_client as sioc
+	import socketIO_client as sioc
 except ImportError:
-    print('Could not import the socket.io client library.')
-    print('sudo pip install socketIO-client')
-    sys.exit(1)
+	print('Could not import the socket.io client library.')
+	print('sudo pip install socketIO-client')
+	sys.exit(1)
 
 import logging
 logging.basicConfig()
 
-DEVICE_MAP_FILE = "device-map.json"
-LOCATION = ""
-query = {'profile_id': 'U8H29zqH0i',
-         'address': None} #specified in main once location is known
-stream_namespace = None
+SOCKETIO_HOST      = 'inductor.eecs.umich.edu'
+SOCKETIO_PORT      = 8082
+SOCKETIO_NAMESPACE = 'stream'
 
-# gets deployment location, picks door-triggered or polling monitor
-# depending on whether there is a door sensor available.
-# it would be nice to generalize this trigger idea in the future.
-def main():
-    global LOCATION
-    global stream_namespace
-    SOCKETIO_HOST      = 'inductor.eecs.umich.edu'
-    SOCKETIO_PORT      = 8082
-    SOCKETIO_NAMESPACE = 'stream'
+# location is used to only grab relevant data streams
+#   will be set once it is known by the application
+fitbit_query = {'profile_id': 'dwgY2s6mEu', 'location_str': 'University of Michigan|BBB|4908'}
+door_query = {'profile_id': 'U8H29zqH0i', 'location_str': 'University of Michigan|BBB|4908'}
 
-    LOCATION = "" #Get this as a system argument
-    DOOR_TRIGGERED = False #Get this as a system argument
+def main( ):
+    pass
 
-    USAGE = """
-    Please specify location being monitored.
+class MigrationMonitor ( ):
 
-    if no door sensor is present at the specified location, 
-    the program defaults to polling periodically.
 
-    Door sensors are available in the following locations:
-"""
-    door_sensors = get_door_sensors()
+class StreamReceiverThread (sioc.BaseNamespace, Thread):
 
-    # get location
-    if len(sys.argv) != 2:
-        print(USAGE)
-        for sensor in door_sensors:
-            print("    " + sensor['location'])
-        print("")
-        exit()
-    else:
-        LOCATION = sys.argv[1]
+    def __init__(self, query, data_type, message_queue):
+        self.daemon = True
 
-    # if location has door sensor, trigger on it
-    for sensor in door_sensors:
-        if sensor['location'] == LOCATION:
-            DOOR_TRIGGERED = True
-            query['address'] = sensor['device_addr']
-    
-    # door/gatd triggered logic
-    if DOOR_TRIGGERED:
-        print("Starting door-triggered migration monitor")
+        self.query = query
+        self.data_type = data_type
+        self.message_queue = message_queue
+        self.stream_namespace = None
+
+        self.start()
+
+    def run(self):
         socketIO = sioc.SocketIO(SOCKETIO_HOST, SOCKETIO_PORT)
-        stream_namespace = socketIO.define(EventDrivenMigrationMonitor,
-            '/{}'.format(SOCKETIO_NAMESPACE))
+        self.stream_namespace = socketIO.define(stream_receiver, '/{}'.format(SOCKETIO_NAMESPACE))
         socketIO.wait()
-    # periodic polling only
-    else:
-        print("Starting polling migration monitor")
-        PollingMigrationMonitor(30*60) # poll every 30 mins + time to find devices
-        #PollingMigrationMonitor(1)
-    while(True):
-        pass
 
-def get_door_sensors():
-    door_sensors = []
-    f = open(DEVICE_MAP_FILE)
-    contents = f.read()
-    f.close()
-    contents = contents.replace("\n", "")
-    contents = contents.replace("\t", "")
-    device_maps = json.loads(contents)
-    for device_map in device_maps:
-        if device_map["descr"] == "door sensor":
-            door_sensors.append(device_map)
-    return door_sensors    
+	def on_reconnect (self):
+		if 'time' in query:
+			del query['time']
+		self.stream_namespace.emit('query', self.query)
 
-def sanitize(device_id):
-    return device_id.replace(":", "").upper()
+	def on_connect (self):
+		self.stream_namespace.emit('query', self.query)
 
-def cur_datetime():
-    return strftime("%m/%d/%Y %H:%M")
+	def on_data (self, *args):
+        # data received from gatd
+		pkt = args[0]
+        self.message_queue.put([self.data_type, pkt])
 
-def get_real_name(uniqname):
-    real_name = "Unknown Name"
-    f = open(DEVICE_MAP_FILE)
-    contents = f.read()
-    f.close()
-    contents = contents.replace("\n", "")
-    contents = contents.replace("\t", "")
-    device_maps = json.loads(contents)
-    for device_map in device_maps:
-        if "uniqname" in device_map and device_map["uniqname"] == uniqname:
-            real_name = device_map["owner"]
-    return real_name   
 
-class MigrationMonitor():
-    last_seen_owners = None
-    last_seen_rfids = {} #keep these around for a scan
 
-    def update(self):
-        # check for present fitbits.
-        present_fitbits = self.get_present_fitbits()
-        # match fitbit list against known list
-        migrants = self.get_migrants(present_fitbits)
-        # send these changes to GATD
+if __name__=="__main__":
+    main()
 
-    def get_present_fitbits(self):
-        present_fitbits = []
-        for i in range(3):
-            fitbit_data = fitbitfinder.discover_fitbits()
-            # if timeout, try again
-            if fitbit_data == None:
-                i = i-1
-        if fitbit_data != None:
-            # sanitize
-            for i,fitbit_record in enumerate(fitbit_data):
-                fitbit_id = sanitize(fitbit_record[0])
-                if fitbit_id not in present_fitbits:
-                    present_fitbits.append(fitbit_id)
-        return present_fitbits
-        
-    def get_migrants(self, present_fitbits):
-        present_owners = self.get_device_owners(present_fitbits)
-        print("Current occupants:")
-        if present_owners == []:
-            print("None.")
+
+
+
+if 0:
+
+    import fitbitfinder
+    from time import sleep
+    from time import strftime
+
+    try:
+        import socketIO_client as sioc
+    except ImportError:
+        print('Could not import the socket.io client library.')
+        print('sudo pip install socketIO-client')
+        sys.exit(1)
+
+    import logging
+    logging.basicConfig()
+
+    DEVICE_MAP_FILE = "device-map.json"
+    LOCATION = ""
+    query = {'profile_id': 'U8H29zqH0i',
+             'address': None} #specified in main once location is known
+    stream_namespace = None
+
+    # gets deployment location, picks door-triggered or polling monitor
+    # depending on whether there is a door sensor available.
+    # it would be nice to generalize this trigger idea in the future.
+    def main():
+        global LOCATION
+        global stream_namespace
+        SOCKETIO_HOST      = 'inductor.eecs.umich.edu'
+        SOCKETIO_PORT      = 8082
+        SOCKETIO_NAMESPACE = 'stream'
+
+        LOCATION = "" #Get this as a system argument
+        DOOR_TRIGGERED = False #Get this as a system argument
+
+        USAGE = """
+        Please specify location being monitored.
+
+        if no door sensor is present at the specified location, 
+        the program defaults to polling periodically.
+
+        Door sensors are available in the following locations:
+    """
+        door_sensors = get_door_sensors()
+
+        # get location
+        if len(sys.argv) != 2:
+            print(USAGE)
+            for sensor in door_sensors:
+                print("    " + sensor['location'])
+            print("")
+            exit()
         else:
-            for p in present_owners:
-                print(" " + str(p))
-                delete_list = []
-                # this takes care of people who card in and then whose fitbit shows up
-                if p in self.last_seen_rfids and p not in self.last_seen_owners:
-                    self.last_seen_owners.append(p)
-                    delete_list.append(p)
-                for p in delete_list:
-                    del self.last_seen_rfids[p]
-        if self.last_seen_owners != None:
-            appeared = [p for p in present_owners if p not in self.last_seen_owners]
-            disappeared = [p for p in self.last_seen_owners if p not in present_owners]
-            delete_list = []
-            for p in self.last_seen_rfids:
-                if self.last_seen_rfids[p] == 0:
-                    delete_list.append(p)
-                else:
-                    self.last_seen_rfids[p] -= 1
-            for p in delete_list:
-                del self.last_seen_rfids[p]
-            #debug
-            for p in appeared:
-                print("\n" + cur_datetime() + ": " + str(p) + " has entered " + str(LOCATION) + "\n")
-            #debug
-            for p in disappeared:
-                print("\n" + cur_datetime() + ": " + str(p) + " has left " + str(LOCATION) + "\n") 
-        self.last_seen_owners = present_owners
+            LOCATION = sys.argv[1]
 
-    def get_device_owners(self, devices):
-        owners = []
+        # if location has door sensor, trigger on it
+        for sensor in door_sensors:
+            if sensor['location'] == LOCATION:
+                DOOR_TRIGGERED = True
+                query['address'] = sensor['device_addr']
+        
+        # door/gatd triggered logic
+        if DOOR_TRIGGERED:
+            print("Starting door-triggered migration monitor")
+            socketIO = sioc.SocketIO(SOCKETIO_HOST, SOCKETIO_PORT)
+            stream_namespace = socketIO.define(EventDrivenMigrationMonitor,
+                '/{}'.format(SOCKETIO_NAMESPACE))
+            socketIO.wait()
+        # periodic polling only
+        else:
+            print("Starting polling migration monitor")
+            PollingMigrationMonitor(30*60) # poll every 30 mins + time to find devices
+            #PollingMigrationMonitor(1)
+        while(True):
+            pass
+
+    def get_door_sensors():
+        door_sensors = []
         f = open(DEVICE_MAP_FILE)
         contents = f.read()
         f.close()
@@ -181,65 +155,157 @@ class MigrationMonitor():
         contents = contents.replace("\t", "")
         device_maps = json.loads(contents)
         for device_map in device_maps:
-            if sanitize(device_map["device_addr"]) in devices and device_map["owner"] not in owners:
-                owners.append(device_map["owner"])
-        return owners
+            if device_map["descr"] == "door sensor":
+                door_sensors.append(device_map)
+        return door_sensors    
+
+    def sanitize(device_id):
+        return device_id.replace(":", "").upper()
+
+    def cur_datetime():
+        return strftime("%m/%d/%Y %H:%M")
+
+    def get_real_name(uniqname):
+        real_name = "Unknown Name"
+        f = open(DEVICE_MAP_FILE)
+        contents = f.read()
+        f.close()
+        contents = contents.replace("\n", "")
+        contents = contents.replace("\t", "")
+        device_maps = json.loads(contents)
+        for device_map in device_maps:
+            if "uniqname" in device_map and device_map["uniqname"] == uniqname:
+                real_name = device_map["owner"]
+        return real_name   
+
+    class MigrationMonitor():
+        last_seen_owners = None
+        last_seen_rfids = {} #keep these around for a scan
+
+        def update(self):
+            # check for present fitbits.
+            present_fitbits = self.get_present_fitbits()
+            # match fitbit list against known list
+            migrants = self.get_migrants(present_fitbits)
+            # send these changes to GATD
+
+        def get_present_fitbits(self):
+            present_fitbits = []
+            for i in range(3):
+                fitbit_data = fitbitfinder.discover_fitbits()
+                # if timeout, try again
+                if fitbit_data == None:
+                    i = i-1
+            if fitbit_data != None:
+                # sanitize
+                for i,fitbit_record in enumerate(fitbit_data):
+                    fitbit_id = sanitize(fitbit_record[0])
+                    if fitbit_id not in present_fitbits:
+                        present_fitbits.append(fitbit_id)
+            return present_fitbits
+            
+        def get_migrants(self, present_fitbits):
+            present_owners = self.get_device_owners(present_fitbits)
+            print("Current occupants:")
+            if present_owners == []:
+                print("None.")
+            else:
+                for p in present_owners:
+                    print(" " + str(p))
+                    delete_list = []
+                    # this takes care of people who card in and then whose fitbit shows up
+                    if p in self.last_seen_rfids and p not in self.last_seen_owners:
+                        self.last_seen_owners.append(p)
+                        delete_list.append(p)
+                    for p in delete_list:
+                        del self.last_seen_rfids[p]
+            if self.last_seen_owners != None:
+                appeared = [p for p in present_owners if p not in self.last_seen_owners]
+                disappeared = [p for p in self.last_seen_owners if p not in present_owners]
+                delete_list = []
+                for p in self.last_seen_rfids:
+                    if self.last_seen_rfids[p] == 0:
+                        delete_list.append(p)
+                    else:
+                        self.last_seen_rfids[p] -= 1
+                for p in delete_list:
+                    del self.last_seen_rfids[p]
+                #debug
+                for p in appeared:
+                    print("\n" + cur_datetime() + ": " + str(p) + " has entered " + str(LOCATION) + "\n")
+                #debug
+                for p in disappeared:
+                    print("\n" + cur_datetime() + ": " + str(p) + " has left " + str(LOCATION) + "\n") 
+            self.last_seen_owners = present_owners
+
+        def get_device_owners(self, devices):
+            owners = []
+            f = open(DEVICE_MAP_FILE)
+            contents = f.read()
+            f.close()
+            contents = contents.replace("\n", "")
+            contents = contents.replace("\t", "")
+            device_maps = json.loads(contents)
+            for device_map in device_maps:
+                if sanitize(device_map["device_addr"]) in devices and device_map["owner"] not in owners:
+                    owners.append(device_map["owner"])
+            return owners
 
 
-# looks for migration sets after a door event occurs
-class EventDrivenMigrationMonitor (sioc.BaseNamespace, MigrationMonitor):
-    
-    def on_reconnect (self):
-        if 'time' in query:
-            del query['time']
-        stream_namespace.emit('query', query)
+    # looks for migration sets after a door event occurs
+    class EventDrivenMigrationMonitor (sioc.BaseNamespace, MigrationMonitor):
+        
+        def on_reconnect (self):
+            if 'time' in query:
+                del query['time']
+            stream_namespace.emit('query', query)
 
-    def on_connect (self):
-        stream_namespace.emit('query', query)
+        def on_connect (self):
+            stream_namespace.emit('query', query)
 
-    def on_data (self, *args):
-        pkt = args[0]
-        msg_type = pkt['type']
-        print(cur_datetime() + ": " + pkt['type'].replace('_', ' ').capitalize() + " (" + str(LOCATION) + ")")
-        # people leaving
-        if msg_type == 'door_close':
-            self.update() # enough latency due to multiple checks that they have enough time to escape
-        # people entering. Covers folks who didn't swipe their RFID card (multiple people, keys, etc.)
-        elif msg_type == 'door_open':
-            self.update()
-        # people entering. Covers the person who carded in (way faster than finding fitbit)
-        elif pkt['type'] == 'rfid':
-            person = get_real_name(pkt['uniqname'])
-            if self.last_seen_owners != None and person not in self.last_seen_owners:
-                self.last_seen_rfids[person] = 1 #number of scans to remember their entry
-                print("\n" + cur_datetime() + ": " + person + " has entered " + str(LOCATION) + "\n")
-                #send to GATD
-            self.update()
+        def on_data (self, *args):
+            pkt = args[0]
+            msg_type = pkt['type']
+            print(cur_datetime() + ": " + pkt['type'].replace('_', ' ').capitalize() + " (" + str(LOCATION) + ")")
+            # people leaving
+            if msg_type == 'door_close':
+                self.update() # enough latency due to multiple checks that they have enough time to escape
+            # people entering. Covers folks who didn't swipe their RFID card (multiple people, keys, etc.)
+            elif msg_type == 'door_open':
+                self.update()
+            # people entering. Covers the person who carded in (way faster than finding fitbit)
+            elif pkt['type'] == 'rfid':
+                person = get_real_name(pkt['uniqname'])
+                if self.last_seen_owners != None and person not in self.last_seen_owners:
+                    self.last_seen_rfids[person] = 1 #number of scans to remember their entry
+                    print("\n" + cur_datetime() + ": " + person + " has entered " + str(LOCATION) + "\n")
+                    #send to GATD
+                self.update()
 
 
-# looks for migration events periodically 
-# i.e., does not require a door sensor
-class PollingMigrationMonitor(Thread, MigrationMonitor):
+    # looks for migration events periodically 
+    # i.e., does not require a door sensor
+    class PollingMigrationMonitor(Thread, MigrationMonitor):
 
-    def __init__(self, interval_secs):
-        # thread stuff
-        super(PollingMigrationMonitor, self).__init__()
-        self.daemon = True
-        self.cancelled = False
-        # logic parameters
-        self.interval_secs = interval_secs
-        # gooooooooo
-        self.start()
+        def __init__(self, interval_secs):
+            # thread stuff
+            super(PollingMigrationMonitor, self).__init__()
+            self.daemon = True
+            self.cancelled = False
+            # logic parameters
+            self.interval_secs = interval_secs
+            # gooooooooo
+            self.start()
 
-    def run(self):
-        while not self.cancelled:
-            print("\nPolling {}".format(strftime("%Y-%m-%d %H:%M:%S")))
-            self.update()
-            sleep(self.interval_secs)
+        def run(self):
+            while not self.cancelled:
+                print("\nPolling {}".format(strftime("%Y-%m-%d %H:%M:%S")))
+                self.update()
+                sleep(self.interval_secs)
 
-    def cancel(self):
-        self.cancelled = True
+        def cancel(self):
+            self.cancelled = True
 
-if __name__=="__main__":
-    main()
+    if __name__=="__main__":
+        main()
 
