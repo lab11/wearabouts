@@ -6,62 +6,178 @@ import IPy
 import json
 import sys
 from threading import Thread
+import Queue
+from time import time
 
 try:
-	import socketIO_client as sioc
+    import socketIO_client as sioc
 except ImportError:
-	print('Could not import the socket.io client library.')
-	print('sudo pip install socketIO-client')
-	sys.exit(1)
+    print('Could not import the socket.io client library.')
+    print('sudo pip install socketIO-client')
+    sys.exit(1)
 
 import logging
 logging.basicConfig()
+
+USAGE = """
+Pulls data from various GATD streams to determine people in a given room
+
+To perform continuous monitoring, please specify location being monitored.
+
+Locations should be specified in the format:
+    "University|Building|Room"
+
+example:
+    "University of Michigan|BBB|4908"
+"""
 
 SOCKETIO_HOST      = 'inductor.eecs.umich.edu'
 SOCKETIO_PORT      = 8082
 SOCKETIO_NAMESPACE = 'stream'
 
-# location is used to only grab relevant data streams
-#   will be set once it is known by the application
-fitbit_query = {'profile_id': 'dwgY2s6mEu', 'location_str': 'University of Michigan|BBB|4908'}
-door_query = {'profile_id': 'U8H29zqH0i', 'location_str': 'University of Michigan|BBB|4908'}
-
 def main( ):
-    pass
+
+    # get location from user
+    location = ''
+    if len(sys.argv) != 2:
+        print(USAGE)
+        exit()
+    else:
+        location = sys.argv[1]
+
+    fitbit_query = {'profile_id': 'dwgY2s6mEu', 'location_str': location}
+    door_query = {'profile_id': 'U8H29zqH0i', 'location_str': location}
+    message_queue = Queue.Queue()
+
+    # start threads to receive data from GATD
+    ReceiverThread(fitbit_query, 'fitbit', message_queue)
+    ReceiverThread(door_query, 'door', message_queue)
+
+    # start migration monitor
+    mm = MigrationMonitor(location, message_queue)
+    mm.monitor()
+
 
 class MigrationMonitor ( ):
+    people_present = {} # mapping of people present to evidence of presence
+    last_seen_rfids = {}
+    previous_message_time = 0
+
+    def __init__(self, location, message_queue):
+        self.location = location
+        self.message_queue = message_queue
+
+    def monitor(self):
+        while True:
+            [data_type, packet] = self.message_queue.get(false)
+
+            if packet = None:
+                
+                # Do something if enough time has passed
+                if time() - previous_message_time > 30:
+                    #XXX: do stuff
+
+                continue
 
 
-class StreamReceiverThread (sioc.BaseNamespace, Thread):
+
+            # skip packet if not fully formed
+            if 'full_name' not in pkt:
+                continue
+            if 'location_str' not in pkt:
+                continue
+            if 'time' not in pkt:
+                continue
+
+            # skip packet if not for this location
+            if pkt['location_str'] != self.location:
+                continue
+
+            # the way this works:
+            #   people_present is a mapping of people in the location to
+            #   evidence of them being there. Each individual sensor adds
+            #   a person if not in the list already and can either overwrite
+            #   evidence or choose not to based on its priority level. Sensors
+            #   should also remove people from the list when they are no
+            #   longer present based on any data other than its own (or if its
+            #   data is of a higher priority)
+
+            # fitbit data
+            if data_type == 'fitbit':
+                person = pkt['full_name']
+                #XXX: do stuff
+                    
+                
+            # door sensor data
+            if data_type == 'door':
+                if 'type' in pkt and pkt['type'] == 'rfid':
+                    person = pkt['full_name']
+                    self.last_seen_rfids[person] = 1
+                    print("\n" + cur_datetime() + ": " + person + " has entered " + str(location) + "\n")
+                    people_present[person] = 'rfid'
+                if 'type' in pkt and pkt['type'] == 'door_open':
+                    # keep rfid people around until the door opens again
+                    for person in last_seen_rfids.keys():
+                        if self.last_seen_rfids[person] == 1:
+                            self.last_seen_rfids[person] = 0
+                        if self.last_seen_rfids[person] == 0:
+                            del self.last_seen_rfids[person]
+                            # only remove the person if they don't have other evidence
+                            if person in self.people_present and self.people_present[person] == 'rfid':
+                                print("\n" + cur_datetime() + ": Can't be sure " + person + " is still in " + str(location) + "\n")
+                                del self.people_present[person]
+
+
+            # Add additional sources here
+            # if data_type == 'New Thing':
+
+            # mark the time this packet was seen at
+            self.previous_message_time = time()
+
+
+class ReceiverThread (Thread):
 
     def __init__(self, query, data_type, message_queue):
+
+        # init thread
+        super(ReceiverThread, self).__init__()
         self.daemon = True
 
+        # init data
         self.query = query
         self.data_type = data_type
         self.message_queue = message_queue
         self.stream_namespace = None
 
+        # start thread
         self.start()
 
     def run(self):
         socketIO = sioc.SocketIO(SOCKETIO_HOST, SOCKETIO_PORT)
-        self.stream_namespace = socketIO.define(stream_receiver, '/{}'.format(SOCKETIO_NAMESPACE))
+        self.stream_namespace = socketIO.define(StreamReceiver, '/{}'.format(SOCKETIO_NAMESPACE))
+        self.stream_namespace.set_data(self.query, self.data_type, self.message_queue, self.stream_namespace)
         socketIO.wait()
 
-	def on_reconnect (self):
-		if 'time' in query:
-			del query['time']
-		self.stream_namespace.emit('query', self.query)
 
-	def on_connect (self):
-		self.stream_namespace.emit('query', self.query)
+class StreamReceiver (sioc.BaseNamespace):
 
-	def on_data (self, *args):
-        # data received from gatd
-		pkt = args[0]
-        self.message_queue.put([self.data_type, pkt])
+    def set_data (self, query, data_type, message_queue, stream_namespace):
+        self.query = query
+        self.data_type = data_type
+        self.message_queue = message_queue
+        self.stream_namespace = stream_namespace
 
+    def on_reconnect (self):
+        if 'time' in query:
+            del query['time']
+        self.stream_namespace.emit('query', self.query)
+
+    def on_connect (self):
+        self.stream_namespace.emit('query', self.query)
+
+    def on_data (self, *args):
+        # data received from gatd. Push to msg_q
+        self.message_queue.put([self.data_type, args[0]])
 
 
 if __name__=="__main__":
@@ -108,7 +224,7 @@ if 0:
         USAGE = """
         Please specify location being monitored.
 
-        if no door sensor is present at the specified location, 
+        if no door sensor is present at the specified location,
         the program defaults to polling periodically.
 
         Door sensors are available in the following locations:
@@ -130,7 +246,7 @@ if 0:
             if sensor['location'] == LOCATION:
                 DOOR_TRIGGERED = True
                 query['address'] = sensor['device_addr']
-        
+
         # door/gatd triggered logic
         if DOOR_TRIGGERED:
             print("Starting door-triggered migration monitor")
@@ -157,7 +273,7 @@ if 0:
         for device_map in device_maps:
             if device_map["descr"] == "door sensor":
                 door_sensors.append(device_map)
-        return door_sensors    
+        return door_sensors
 
     def sanitize(device_id):
         return device_id.replace(":", "").upper()
@@ -176,7 +292,7 @@ if 0:
         for device_map in device_maps:
             if "uniqname" in device_map and device_map["uniqname"] == uniqname:
                 real_name = device_map["owner"]
-        return real_name   
+        return real_name
 
     class MigrationMonitor():
         last_seen_owners = None
@@ -203,7 +319,7 @@ if 0:
                     if fitbit_id not in present_fitbits:
                         present_fitbits.append(fitbit_id)
             return present_fitbits
-            
+
         def get_migrants(self, present_fitbits):
             present_owners = self.get_device_owners(present_fitbits)
             print("Current occupants:")
@@ -235,7 +351,7 @@ if 0:
                     print("\n" + cur_datetime() + ": " + str(p) + " has entered " + str(LOCATION) + "\n")
                 #debug
                 for p in disappeared:
-                    print("\n" + cur_datetime() + ": " + str(p) + " has left " + str(LOCATION) + "\n") 
+                    print("\n" + cur_datetime() + ": " + str(p) + " has left " + str(LOCATION) + "\n")
             self.last_seen_owners = present_owners
 
         def get_device_owners(self, devices):
@@ -254,7 +370,7 @@ if 0:
 
     # looks for migration sets after a door event occurs
     class EventDrivenMigrationMonitor (sioc.BaseNamespace, MigrationMonitor):
-        
+
         def on_reconnect (self):
             if 'time' in query:
                 del query['time']
@@ -283,7 +399,7 @@ if 0:
                 self.update()
 
 
-    # looks for migration events periodically 
+    # looks for migration events periodically
     # i.e., does not require a door sensor
     class PollingMigrationMonitor(Thread, MigrationMonitor):
 
