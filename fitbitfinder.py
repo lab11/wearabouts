@@ -16,7 +16,7 @@ import IPy
 import json
 import sys
 from threading import Thread, Lock
-from time import sleep, strftime, time
+from time import sleep, strftime, time, localtime
 import urllib2
 
 try:
@@ -135,8 +135,8 @@ def get_door_sensors():
 def sanitize(device_id):
     return device_id.replace(":", "").upper()
 
-def cur_datetime():
-    return strftime("%m/%d/%Y %H:%M")
+def cur_datetime(time_num):
+    return strftime("%m/%d/%Y %H:%M", localtime(time_num/1000))
 
 def get_real_name(uniqname):
     real_name = "Unknown Name"
@@ -278,7 +278,7 @@ class EventDrivenMonitor (sioc.BaseNamespace, FitbitMonitor):
     def on_data (self, *args):
         pkt = args[0]
         msg_type = pkt['type']
-        print(cur_datetime() + ": " + pkt['type'].replace('_', ' ').capitalize() + " (" + str(LOCATION) + ")")
+        print(cur_datetime(pkt['time']) + ": " + pkt['type'].replace('_', ' ').capitalize() + " (" + str(LOCATION) + ")")
         # people entering or leaving. Check fitbits after a delay
         if msg_type == 'door_open':
             sleep(45)
