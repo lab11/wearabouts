@@ -39,10 +39,12 @@ except ImportError:
 import logging
 logging.basicConfig()
 
-DEVICE_MAP_FILE = "device-map.json"
+DOOR_GET_ADDR = 'http://memristor-v1.eecs.umich.edu:8085/explore/profile/U8H29zqH0i'
+FITBIT_POST_ADDR = 'http://inductor.eecs.umich.edu:8081/dwgY2s6mEu'
+
 LOCATION = ""
 query = {'profile_id': 'U8H29zqH0i',
-         'address': None} #specified in main once location is known
+        'location_str': None} #specified in main once location is known
 stream_namespace = None
 
 USAGE = """
@@ -55,8 +57,7 @@ to polling periodically.
 Locations should be specified in the format:
     "University|Building|Room"
 
-Door sensors are available in the following locations:
-"""
+Door sensors are available in the following locations:"""
 
 mutex = Lock()
 last_discovery_time = 0
@@ -76,13 +77,13 @@ def main():
     LOCATION = "" #Get this as a system argument
     DOOR_TRIGGERED = False #Get this as a system argument
 
-    door_sensors = get_door_sensors()
+    door_sensors = get_door_locations()
 
     # get location
     if len(sys.argv) != 2:
         print(USAGE)
-        for sensor in door_sensors:
-            print("    " + sensor['location_str'])
+        for sensor_loc in door_sensors:
+            print("    \"" + sensor_loc + "\"")
         print("")
         exit()
     else:
@@ -101,10 +102,10 @@ def main():
     PollingMonitor(30*60) # poll every 30 mins + time to find devices
 
     # if location has door sensor, trigger on it as well
-    for sensor in door_sensors:
-        if sensor['location_str'] == LOCATION:
+    for sensor_loc in door_sensors:
+        if sensor_loc == LOCATION:
             DOOR_TRIGGERED = True
-            query['address'] = sensor['device_addr']
+            query['location_str'] = LOCATION
     
     # door/gatd triggered logic
     if DOOR_TRIGGERED:
@@ -118,19 +119,17 @@ def main():
     while(True):
         pass
 
-#XXX: Think about the best way to determine Door Devices
-def get_door_sensors():
-    door_sensors = []
-    f = open(DEVICE_MAP_FILE)
-    contents = f.read()
-    f.close()
-    contents = contents.replace("\n", "")
-    contents = contents.replace("\t", "")
-    device_maps = json.loads(contents)
-    for device_map in device_maps:
-        if device_map["descr"] == "door sensor":
-            door_sensors.append(device_map)
-    return door_sensors
+def get_door_locations():
+
+    # query GATD explorer to find door sensor locations
+    req = urllib2.Request(DOOR_GET_ADDR)
+    response = urllib2.urlopen(req)
+    json_data = json.loads(response.read())
+
+    if 'location_str' in json_data:
+        return json_data['location_str'].keys()
+    else:
+        return ['None']
 
 def sanitize(device_id):
     return device_id.replace(":", "").upper()
@@ -138,32 +137,25 @@ def sanitize(device_id):
 def cur_datetime(time_num):
     return strftime("%m/%d/%Y %H:%M", localtime(time_num/1000))
 
-def get_real_name(uniqname):
-    real_name = "Unknown Name"
-    f = open(DEVICE_MAP_FILE)
-    contents = f.read()
-    f.close()
-    contents = contents.replace("\n", "")
-    contents = contents.replace("\t", "")
-    device_maps = json.loads(contents)
-    for device_map in device_maps:
-        if "uniqname" in device_map and device_map["uniqname"] == uniqname:
-            real_name = device_map["owner"]
-    return real_name
-
 def post_to_gatd(fitbit_id, rssi):
     global LOCATION
 
     # Create standard data
-    data = {
-            'location_str' : LOCATION,
-            'fitbit_id' : fitbit_id,
-            'rssi' : rssi
-            }
+    if fitbit_id:
+        data = {
+                'location_str' : LOCATION,
+                'fitbit_id' : fitbit_id,
+                'rssi' : rssi
+                }
+    else:
+        data = {
+                'location_str' : LOCATION,
+                'fitbit_id' : 'None'
+                }
 
     # This is the post address for fitbitLocator
     print("starting post to GATD of" + str(json.dumps(data)))
-    req = urllib2.Request('http://inductor.eecs.umich.edu:8081/dwgY2s6mEu')
+    req = urllib2.Request(FITBIT_POST_ADDR)
     req.add_header('Content-Type', 'application/json')
 
     # Actually post to GATD
@@ -186,8 +178,11 @@ class FitbitMonitor():
         present_fitbits = self.get_present_fitbits()
 
         # send data to GATD
-        for key,value in present_fitbits.items():
-            post_to_gatd(key, value)
+        if present_fitbits:
+            for key,value in present_fitbits.items():
+                post_to_gatd(key, value)
+        else:
+            post_to_gatd(None, None)
 
         # give up the mutex
         mutex.release()

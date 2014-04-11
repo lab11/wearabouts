@@ -8,6 +8,7 @@ import sys
 from threading import Thread
 import Queue
 import time
+import urllib2
 
 try:
     import socketIO_client as sioc
@@ -27,9 +28,9 @@ To perform continuous monitoring, please specify location being monitored.
 Locations should be specified in the format:
     "University|Building|Room"
 
-example:
-    "University of Michigan|BBB|4908"
-"""
+Fitbits are monitored in the following locations:"""
+
+FITBIT_GET_ADDR = 'http://memristor-v1.eecs.umich.edu:8085/explore/profile/dwgY2s6mEu'
 
 SOCKETIO_HOST      = 'inductor.eecs.umich.edu'
 SOCKETIO_PORT      = 8082
@@ -41,6 +42,10 @@ def main( ):
     location = ''
     if len(sys.argv) != 2:
         print(USAGE)
+        fitbit_locs = get_fitbit_locations()
+        for loc in fitbit_locs:
+            print("    \"" + loc + "\"")
+        print("")
         exit()
     else:
         location = sys.argv[1]
@@ -59,6 +64,19 @@ def main( ):
 
 def cur_datetime():
     return time.strftime("%m/%d/%Y %H:%M")
+
+def get_fitbit_locations():
+
+    # query GATD explorer to find fitbit sensor locations
+    req = urllib2.Request(FITBIT_GET_ADDR)
+    response = urllib2.urlopen(req)
+    json_data = json.loads(response.read())
+
+    if 'location_str' in json_data:
+        return json_data['location_str'].keys()
+    else:
+        return ['None']
+
 
 class MigrationMonitor ( ):
     people_present = {} # mapping of people present to evidence of presence
@@ -80,11 +98,13 @@ class MigrationMonitor ( ):
                 #   group is completed
                 if self.fitbit_group:
                     for person in self.fitbit_group:
-                        if person not in self.people_present:
-                            print(cur_datetime() + ": " + person + " has appeared in " + str(self.location) + "\n")
-                            self.people_present[person] = 'fitbit'
-                        else:
-                            self.people_present[person] = 'fitbit'
+                        # None is a special ID signifying no fitbits were found
+                        if person != 'None':
+                            if person not in self.people_present:
+                                print(cur_datetime() + ": " + person + " has appeared in " + str(self.location) + "\n")
+                                self.people_present[person] = 'fitbit'
+                            else:
+                                self.people_present[person] = 'fitbit'
 
                     del_list = []
                     for person in self.people_present:
