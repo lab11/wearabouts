@@ -141,6 +141,8 @@ def post_to_gatd(fitbit_id, rssi):
     global LOCATION
 
     # Create standard data
+    #TODO: Add a sequence number or maybe station id number in case mulitple
+    #   fitbit finders are running in a single room
     if fitbit_id:
         data = {
                 'location_str' : LOCATION,
@@ -278,6 +280,7 @@ class EventDrivenMonitor (sioc.BaseNamespace, FitbitMonitor):
         if msg_type == 'door_open':
             sleep(45)
             self.update()
+
 
 # looks for fitbit events periodically 
 # i.e., does not require a door sensor

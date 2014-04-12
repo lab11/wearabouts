@@ -1,7 +1,5 @@
 #!/usr/bin/env python2
 
-# TODO: periodic polling, even if low frequency, would be super convenient.
-
 import IPy
 import json
 import sys
@@ -31,6 +29,7 @@ Locations should be specified in the format:
 Fitbits are monitored in the following locations:"""
 
 FITBIT_GET_ADDR = 'http://memristor-v1.eecs.umich.edu:8085/explore/profile/dwgY2s6mEu'
+PRESENCE_POST_ADDR = 'http://inductor.eecs.umich.edu:8081/hsYQx8blbd'
 
 SOCKETIO_HOST      = 'inductor.eecs.umich.edu'
 SOCKETIO_PORT      = 8082
@@ -77,6 +76,25 @@ def get_fitbit_locations():
     else:
         return ['None']
 
+def post_to_gatd(location, people_present):
+
+    # Create standard data
+    data = {
+            'location_str' : location,
+            'person_list' : sorted(people_present.keys())
+            }
+
+    # print the current list of people
+    print(cur_datetime() + ": " + str(people_present.keys()) + "\n")
+
+    #print("starting post to GATD of" + str(json.dumps(data)))
+    req = urllib2.Request(PRESENCE_POST_ADDR)
+    req.add_header('Content-Type', 'application/json')
+
+    # Actually post to GATD
+    response = urllib2.urlopen(req, json.dumps(data))
+    #print("POST complete")
+
 
 class MigrationMonitor ( ):
     people_present = {} # mapping of people present to evidence of presence
@@ -87,6 +105,7 @@ class MigrationMonitor ( ):
         self.location = location
         self.message_queue = message_queue
 
+    #XXX: Need to think of a better way to do this
     def monitor(self):
         while True:
             try:
@@ -100,19 +119,17 @@ class MigrationMonitor ( ):
                     for person in self.fitbit_group:
                         # None is a special ID signifying no fitbits were found
                         if person != 'None':
-                            if person not in self.people_present:
-                                print(cur_datetime() + ": " + person + " has appeared in " + str(self.location) + "\n")
-                                self.people_present[person] = 'fitbit'
-                            else:
-                                self.people_present[person] = 'fitbit'
+                            #if person not in self.people_present:
+                                #print(cur_datetime() + ": " + person + " has appeared in " + str(self.location) + "\n")
+                            self.people_present[person] = 'fitbit'
 
                     del_list = []
                     for person in self.people_present:
                         if person not in self.fitbit_group:
-                            if (self.people_present[person] == 'fitbit'):
-                                print(cur_datetime() + ": " + person + " has left " + str(self.location) + "\n")
-                            else:
-                                print(cur_datetime() + ": Can't be sure " + person + " is still in " + str(self.location) + "\n")
+                            #if (self.people_present[person] == 'fitbit'):
+                                #print(cur_datetime() + ": " + person + " has left " + str(self.location) + "\n")
+                            #else:
+                                #print(cur_datetime() + ": Can't be sure " + person + " is still in " + str(self.location) + "\n")
                                 
                             del_list.append(person)
 
@@ -121,6 +138,9 @@ class MigrationMonitor ( ):
 
                     self.fitbit_group = []
                     #print ("Emptied fitbit group")
+
+                    # Transmit updated people list to GATD
+                    post_to_gatd(self.location, self.people_present)
 
                 # There's no data available yet
                 continue
@@ -166,8 +186,12 @@ class MigrationMonitor ( ):
             if data_type == 'door':
                 if 'type' in pkt and pkt['type'] == 'rfid':
                     person = pkt['full_name']
-                    print("\n" + cur_datetime() + ": " + person + " has entered " + str(self.location) + "\n")
+                    #print("\n" + cur_datetime() + ": " + person + " has entered " + str(self.location) + "\n")
                     self.people_present[person] = 'rfid'
+
+                    # Transmit updated people list to GATD
+                    post_to_gatd(self.location, self.people_present)
+
                 #print("Door packet!")
 
             # Add additional sources here
