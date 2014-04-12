@@ -39,7 +39,7 @@ except ImportError:
 import logging
 logging.basicConfig()
 
-DOOR_GET_ADDR = 'http://memristor-v1.eecs.umich.edu:8085/explore/profile/U8H29zqH0i'
+DOOR_GET_ADDR = 'http://inductor.eecs.umich.edu:8085/explore/profile/U8H29zqH0i'
 FITBIT_POST_ADDR = 'http://inductor.eecs.umich.edu:8081/dwgY2s6mEu'
 
 LOCATION = ""
@@ -278,7 +278,7 @@ class EventDrivenMonitor (sioc.BaseNamespace, FitbitMonitor):
         print(cur_datetime(pkt['time']) + ": " + pkt['type'].replace('_', ' ').capitalize() + " (" + str(LOCATION) + ")")
         # people entering or leaving. Check fitbits after a delay
         if msg_type == 'door_open':
-            sleep(45)
+            sleep(60)
             self.update()
 
 
