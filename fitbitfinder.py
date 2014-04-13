@@ -55,7 +55,7 @@ If no door sensor is present at the specified location, the program defaults
 to polling periodically.
 
 Locations should be specified in the format:
-    "University|Building|Room"
+    University|Building|Room
 
 Door sensors are available in the following locations:"""
 
@@ -82,10 +82,22 @@ def main():
     # get location
     if len(sys.argv) != 2:
         print(USAGE)
+        index = 0
         for sensor_loc in door_sensors:
-            print("    \"" + sensor_loc + "\"")
+            print("    [" + str(index) + "]: " + sensor_loc)
+            index += 1
         print("")
-        exit()
+        user_input = raw_input("Select a location or enter a new one: ")
+
+        if user_input.isdigit():
+            user_input = int(user_input)
+            if 0 <= user_input < index:
+                LOCATION = door_sensors[user_input]
+            else:
+                print("Invalid selection")
+                exit()
+        else:
+            LOCATION = user_input
     else:
         LOCATION = sys.argv[1]
 
@@ -97,9 +109,11 @@ def main():
             print(str(key) + ' : ' + str(present_fitbits[key]))
         exit()
 
+    print("Running fitbitfinder at " + LOCATION)
+
     # also start periodic polling
     print("\nStarting polling monitor")
-    PollingMonitor(30*60) # poll every 30 mins + time to find devices
+    PollingMonitor(10*60) # poll every 10 mins + time to find devices
 
     # if location has door sensor, trigger on it as well
     for sensor_loc in door_sensors:

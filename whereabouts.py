@@ -24,7 +24,7 @@ Pulls data from various GATD streams to determine people in a given room
 To perform continuous monitoring, please specify location being monitored.
 
 Locations should be specified in the format:
-    "University|Building|Room"
+    University|Building|Room
 
 Fitbits are monitored in the following locations:"""
 
@@ -42,12 +42,26 @@ def main( ):
     if len(sys.argv) != 2:
         print(USAGE)
         fitbit_locs = get_fitbit_locations()
-        for loc in fitbit_locs:
-            print("    \"" + loc + "\"")
+        index = 0
+        for sensor_loc in fitbit_locs:
+            print("    [" + str(index) + "]: " + sensor_loc)
+            index += 1
         print("")
-        exit()
+        user_input = raw_input("Select a location or enter a new one: ")
+
+        if user_input.isdigit():
+            user_input = int(user_input)
+            if 0 <= user_input < index:
+                location = fitbit_locs[user_input]
+            else:
+                print("Invalid selection")
+                exit()
+        else:
+            location = user_input
     else:
         location = sys.argv[1]
+
+    print("Running whereabouts at " + location)
 
     fitbit_query = {'profile_id': 'dwgY2s6mEu', 'location_str': location}
     door_query = {'profile_id': 'U8H29zqH0i', 'location_str': location}
@@ -78,10 +92,15 @@ def get_fitbit_locations():
 
 def post_to_gatd(location, people_present):
 
+    # Create list of people
+    people_list = []
+    for uniqname in people_present.keys():
+        people_list.append({uniqname: people_present[uniqname]})
+
     # Create standard data
     data = {
             'location_str' : location,
-            'person_list' : sorted(people_present.keys())
+            'person_list' : sorted(people_list)
             }
 
     # print the current list of people
@@ -97,9 +116,8 @@ def post_to_gatd(location, people_present):
 
 
 class MigrationMonitor ( ):
-    people_present = {} # mapping of people present to evidence of presence
-
-    fitbit_group = []
+    people_present = {}
+    fitbit_group = {}
 
     def __init__(self, location, message_queue):
         self.location = location
@@ -116,28 +134,20 @@ class MigrationMonitor ( ):
                 #   time has passed between packets, we can assume that the
                 #   group is completed
                 if self.fitbit_group:
-                    for person in self.fitbit_group:
+                    for uniqname in self.fitbit_group.keys():
                         # None is a special ID signifying no fitbits were found
-                        if person != 'None':
-                            #if person not in self.people_present:
-                                #print(cur_datetime() + ": " + person + " has appeared in " + str(self.location) + "\n")
-                            self.people_present[person] = 'fitbit'
+                        if uniqname != 'None':
+                            self.people_present[uniqname] = self.fitbit_group[uniqname]
 
                     del_list = []
-                    for person in self.people_present:
-                        if person not in self.fitbit_group:
-                            #if (self.people_present[person] == 'fitbit'):
-                                #print(cur_datetime() + ": " + person + " has left " + str(self.location) + "\n")
-                            #else:
-                                #print(cur_datetime() + ": Can't be sure " + person + " is still in " + str(self.location) + "\n")
-                                
-                            del_list.append(person)
+                    for uniqname in self.people_present.keys():
+                        if uniqname not in self.fitbit_group.keys():
+                            del_list.append(uniqname)
 
-                    for person in del_list:
-                        del self.people_present[person]
+                    for uniqname in del_list:
+                        del self.people_present[uniqname]
 
-                    self.fitbit_group = []
-                    #print ("Emptied fitbit group")
+                    self.fitbit_group = {}
 
                     # Transmit updated people list to GATD
                     post_to_gatd(self.location, self.people_present)
@@ -146,6 +156,8 @@ class MigrationMonitor ( ):
                 continue
 
             # skip packet if not fully formed
+            if 'uniqname' not in pkt:
+                continue
             if 'full_name' not in pkt:
                 continue
             if 'location_str' not in pkt:
@@ -161,12 +173,9 @@ class MigrationMonitor ( ):
 
             # the way this works:
             #   people_present is a mapping of people in the location to
-            #   evidence of them being there. Each individual sensor adds
-            #   a person if not in the list already and can either overwrite
-            #   evidence or choose not to based on its priority level. Sensors
-            #   should also remove people from the list when they are no
-            #   longer present based on any data other than its own (or if its
-            #   data is of a higher priority)
+            #   uniqname. Each individual sensor adds a person if not in the
+            #   list already. Sensors should also remove people from the list
+            #   when they are no longer present
 
             # fitbit data
             # This data comes in discovery scan groups. Fill a list with the
@@ -174,9 +183,9 @@ class MigrationMonitor ( ):
             #   on a timeout. If a person is no longer found, assume they are
             #   not present
             if data_type == 'fitbit':
-                person = pkt['full_name']
-                if person not in self.fitbit_group:
-                    self.fitbit_group.append(person)
+                uniqname = pkt['uniqname']
+                if uniqname not in self.fitbit_group:
+                    self.fitbit_group[uniqname] = pkt['full_name'];
                 #print ("Fitbit Packet!")
                 
             # door sensor data
@@ -185,9 +194,9 @@ class MigrationMonitor ( ):
             #   is valid until another door event or fitbit group occurs
             if data_type == 'door':
                 if 'type' in pkt and pkt['type'] == 'rfid':
-                    person = pkt['full_name']
+                    uniqname = pkt['uniqname']
                     #print("\n" + cur_datetime() + ": " + person + " has entered " + str(self.location) + "\n")
-                    self.people_present[person] = 'rfid'
+                    self.people_present[uniqname] = pkt['full_name']
 
                     # Transmit updated people list to GATD
                     post_to_gatd(self.location, self.people_present)
