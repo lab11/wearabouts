@@ -77,29 +77,34 @@ def main():
     LOCATION = "" #Get this as a system argument
     DOOR_TRIGGERED = False #Get this as a system argument
 
-    door_sensors = get_door_locations()
+    try:
+        door_sensors = get_door_locations()
+    except urllib2.URLError:
+        print("Connection to inductor unavailable. Running in test mode")
+        LOCATION = 'test'
 
     # get location
-    if len(sys.argv) != 2:
-        print(USAGE)
-        index = 0
-        for sensor_loc in door_sensors:
-            print("    [" + str(index) + "]: " + sensor_loc)
-            index += 1
-        print("")
-        user_input = raw_input("Select a location or enter a new one: ")
+    if not LOCATION:
+        if len(sys.argv) != 2:
+            print(USAGE)
+            index = 0
+            for sensor_loc in door_sensors:
+                print("    [" + str(index) + "]: " + sensor_loc)
+                index += 1
+            print("")
+            user_input = raw_input("Select a location or enter a new one: ")
 
-        if user_input.isdigit():
-            user_input = int(user_input)
-            if 0 <= user_input < index:
-                LOCATION = door_sensors[user_input]
+            if user_input.isdigit():
+                user_input = int(user_input)
+                if 0 <= user_input < index:
+                    LOCATION = door_sensors[user_input]
+                else:
+                    print("Invalid selection")
+                    exit()
             else:
-                print("Invalid selection")
-                exit()
+                LOCATION = user_input
         else:
-            LOCATION = user_input
-    else:
-        LOCATION = sys.argv[1]
+            LOCATION = sys.argv[1]
 
     if LOCATION == 'test':
         print('Scanning for fitbits...')
