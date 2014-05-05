@@ -233,11 +233,10 @@ class FitbitMonitor():
             print(galileo.main.PERMISSION_DENIED_HELP)
             return
 
-        fitbit = galileo.tracker.FitbitClient(dongle)
-        fitbit.disconnect()
-        fitbit.getDongleInfo()
-        
         try:
+            fitbit = galileo.tracker.FitbitClient(dongle)
+            fitbit.disconnect()
+            fitbit.getDongleInfo()
             trackers = [t for t in self.discovery(dongle)]
 
         except galileo.dongle.TimeoutError:
