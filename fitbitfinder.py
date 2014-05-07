@@ -18,6 +18,7 @@ import sys
 from threading import Thread, Lock
 from time import sleep, strftime, time, localtime
 import urllib2
+import usb
 
 try:
     import galileo.main
@@ -241,6 +242,9 @@ class FitbitMonitor():
 
         except galileo.dongle.TimeoutError:
             print("Timeout trying to discover trackers")
+            return
+        except usb.core.USBError:
+            print("Darned USB Error. Let's try to keep going...")
             return
         except galileo.dongle.PermissionDeniedException:
             print(galileo.main.PERMISSION_DENIED_HELP)
