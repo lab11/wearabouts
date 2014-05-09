@@ -119,7 +119,7 @@ def determine_presence(data):
     if ('rfid' in data and 'doors' in data):
         # if the door hasn't been opened since they swiped and its been
         #   less than half an hour
-        if (data['doors'] == 0 and (time.time() - data['rfid'] < 30*60)):
+        if (data['doors'] < 2 and (time.time() - data['rfid'] < 30*60)):
             return True
 
     return False
