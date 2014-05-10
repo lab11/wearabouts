@@ -151,7 +151,7 @@ class MigrationMonitor ( ):
                             self.presence_data[uniqname]['fitbit'] = self.fitbit_group[uniqname]
                         else:
                             self.presence_data[uniqname]['fitbit'] = -100
-                    self.fitbit_group = []
+                    self.fitbit_group = {}
                     self.locate()
 
                 # no packet to parse, wait again
