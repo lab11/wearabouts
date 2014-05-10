@@ -149,9 +149,9 @@ class MigrationMonitor ( ):
                     for uniqname in self.presence_data:
                         if uniqname in self.fitbit_group:
                             self.presence_data[uniqname]['fitbit'] = self.fitbit_group[uniqname]
-                            del self.fitbit_group[uniqname]
                         else:
                             self.presence_data[uniqname]['fitbit'] = -100
+                    self.fitbit_group = []
                     self.locate()
 
                 # no packet to parse, wait again
@@ -184,8 +184,11 @@ class MigrationMonitor ( ):
             # People present records rssi of the most recent scan, -100 means
             #   the person was not seen
             if data_type == 'fitbit':
-                # add user to group
-                self.fitbit_group[uniqname] = pkt['rssi']
+                if uniqname != 'None':
+                    # add user to group
+                    self.fitbit_group[uniqname] = pkt['rssi']
+                else:
+                    self.fitbit_group[uniqname] = -100
 
             # door sensor data
             # This data comes in three forms: door_open, door_close, and rfid.
