@@ -90,21 +90,17 @@ def get_fitbit_locations():
     else:
         return ['None']
 
-def post_to_gatd(location, people_present):
-
-    # Create list of people
-    people_list = []
-    for uniqname in people_present.keys():
-        people_list.append({uniqname: people_present[uniqname]})
+def post_to_gatd(location, people_list, present_since):
 
     # Create standard data
     data = {
             'location_str' : location,
-            'person_list' : sorted(people_list)
+            'person_list' : sorted(people_list),
+            'since_list' : sorted(present_since)
             }
 
     # print the current list of people
-    print(cur_datetime() + ": " + str(people_present.keys()) + "\n")
+    print(cur_datetime() + ": " + str([person.keys()[0] for person in people_list]) + "\n")
 
     #print("starting post to GATD of" + str(json.dumps(data)))
     req = urllib2.Request(PRESENCE_POST_ADDR)
@@ -114,52 +110,54 @@ def post_to_gatd(location, people_present):
     response = urllib2.urlopen(req, json.dumps(data))
     #print("POST complete")
 
+def determine_presence(data):
+    if ('fitbit' in data):
+        # if the rssi of the fitbit data supports user as in the room
+        if (data['fitbit'] >= -85):
+            return True
+
+    if ('rfid' in data and 'doors' in data):
+        # if the door hasn't been opened since they swiped and its been
+        #   less than half an hour
+        if (data['doors'] < 2 and (time.time() - data['rfid'] < 30*60)):
+            return True
+
+    return False
+
 
 class MigrationMonitor ( ):
-    people_present = {}
+    presence_data = {}
     fitbit_group = {}
 
     def __init__(self, location, message_queue):
         self.location = location
         self.message_queue = message_queue
 
-    #XXX: Need to think of a better way to do this
     def monitor(self):
         while True:
             try:
+                # Pull data from message queue
                 [data_type, pkt] = self.message_queue.get(timeout=3)
+
             except Queue.Empty:
+                # No data has been seen, handle timeouts
 
                 # fitbit data comes in discovery scan groupings. If too much
                 #   time has passed between packets, we can assume that the
                 #   group is completed
                 if self.fitbit_group:
-                    for uniqname in self.fitbit_group.keys():
-                        # None is a special ID signifying no fitbits were found
-                        if uniqname != 'None':
-                            self.people_present[uniqname] = self.fitbit_group[uniqname]
-
-                    del_list = []
-                    for uniqname in self.people_present.keys():
-                        if uniqname not in self.fitbit_group.keys():
-                            del_list.append(uniqname)
-
-                    for uniqname in del_list:
-                        del self.people_present[uniqname]
-
+                    for uniqname in self.presence_data:
+                        if uniqname in self.fitbit_group:
+                            self.presence_data[uniqname]['fitbit'] = self.fitbit_group[uniqname]
+                        else:
+                            self.presence_data[uniqname]['fitbit'] = -100
                     self.fitbit_group = {}
+                    self.locate()
 
-                    # Transmit updated people list to GATD
-                    post_to_gatd(self.location, self.people_present)
-
-                # There's no data available yet
+                # no packet to parse, wait again
                 continue
 
-            # skip packet if not fully formed
-            if 'uniqname' not in pkt:
-                continue
-            if 'full_name' not in pkt:
-                continue
+            # skip packet if it doesn't contain enough data for whereabouts use
             if 'location_str' not in pkt:
                 continue
             if 'time' not in pkt:
@@ -169,42 +167,78 @@ class MigrationMonitor ( ):
             if pkt['location_str'] != self.location:
                 continue
 
-            #print("Got a packet!")
-
-            # the way this works:
-            #   people_present is a mapping of people in the location to
-            #   uniqname. Each individual sensor adds a person if not in the
-            #   list already. Sensors should also remove people from the list
-            #   when they are no longer present
+            # get uniqname from packet
+            uniqname = ""
+            if 'uniqname' in pkt:
+                if 'full_name' not in pkt:
+                    continue
+                uniqname = pkt['uniqname']
+                if uniqname not in self.presence_data and uniqname != 'None':
+                    self.presence_data[uniqname] = {}
+                    self.presence_data[uniqname]['full_name'] = pkt['full_name']
+                    self.presence_data[uniqname]['present_since'] = 0
 
             # fitbit data
-            # This data comes in discovery scan groups. Fill a list with the
-            #   group members and only add their information to people_present
-            #   on a timeout. If a person is no longer found, assume they are
-            #   not present
+            # This data comes in discovery scan groups. Keep a list of group
+            #   members and only pass off to locate on a timeout
+            # People present records rssi of the most recent scan, -100 means
+            #   the person was not seen
             if data_type == 'fitbit':
-                uniqname = pkt['uniqname']
-                if uniqname not in self.fitbit_group:
-                    self.fitbit_group[uniqname] = pkt['full_name'];
-                #print ("Fitbit Packet!")
-                
+                if uniqname != 'None':
+                    # add user to group
+                    self.fitbit_group[uniqname] = pkt['rssi']
+                else:
+                    self.fitbit_group[uniqname] = -100
+
             # door sensor data
             # This data comes in three forms: door_open, door_close, and rfid.
-            #   The rfid is used to identify that an individual is present and
-            #   is valid until another door event or fitbit group occurs
+            #   The rfid is used to identify that an individual is present.
+            #   Future door open events lead to a possibility that the
+            #   individual has left
+            # People present records timestamp of last rfid event and number of
+            #   door open events since last rfid scan
             if data_type == 'door':
-                if 'type' in pkt and pkt['type'] == 'rfid':
-                    uniqname = pkt['uniqname']
-                    #print("\n" + cur_datetime() + ": " + person + " has entered " + str(self.location) + "\n")
-                    self.people_present[uniqname] = pkt['full_name']
+                #print("I got a door packet: " + str(pkt))
+                if 'type' not in pkt:
+                    continue
+                if pkt['type'] == 'rfid':
+                    # update user information
+                    self.presence_data[uniqname]['rfid'] = time.time()
+                    self.presence_data[uniqname]['doors'] = 0
+                    self.locate()
+                elif pkt['type'] == 'door_open':
+                    for present_uniqname in self.presence_data:
+                        if 'doors' in self.presence_data[present_uniqname]:
+                            self.presence_data[present_uniqname]['doors'] += 1
+                    self.locate()
 
-                    # Transmit updated people list to GATD
-                    post_to_gatd(self.location, self.people_present)
+    def locate(self):
+        # create list of people. Each person is a dict of {uniqname: full_name}
+        people_present = []
 
-                #print("Door packet!")
+        # create a list of when each person has been in lab since. Dict of {uniqname: start time}
+        present_since = []
 
-            # Add additional sources here
-            # if data_type == 'New Thing':
+        # decide who is here
+        for uniqname in self.presence_data:
+            #print(uniqname + ": " + str(determine_presence(self.presence_data[uniqname])) + "\n"
+            #        + str(self.presence_data[uniqname]))
+
+            if determine_presence(self.presence_data[uniqname]):
+                # person has been found to be present at this location
+                if (self.presence_data[uniqname]['present_since'] == 0):
+                    self.presence_data[uniqname]['present_since'] = time.time()
+
+                # add to lists
+                people_present.append({uniqname: self.presence_data[uniqname]['full_name']})
+                present_since.append({uniqname: self.presence_data[uniqname]['present_since']})
+
+            else:
+                # person is not present
+                self.presence_data[uniqname]['present_since'] = 0
+
+        #post to GATD
+        post_to_gatd(self.location, people_present, present_since)
 
 
 class ReceiverThread (Thread):
