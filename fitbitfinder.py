@@ -328,7 +328,7 @@ class PollingMonitor(Thread, FitbitMonitor):
             else:
                 print("\nPolling skipped due to recent sample")
             # Go back to sleep until the interval will have passed
-            sleep(self.interval_secs - (time() - last_discovery_time))
+            sleep(max(self.interval_secs - (time() - last_discovery_time), 0))
             
 
     def cancel(self):
