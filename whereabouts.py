@@ -113,7 +113,7 @@ def post_to_gatd(location, people_list, present_since):
 def determine_presence(data):
     if ('fitbit' in data):
         # if the rssi of the fitbit data supports user as in the room
-        if (data['fitbit'] >= -85):
+        if (data['fitbit'] >= -83):
             return True
 
     if ('rfid' in data and 'doors' in data):
