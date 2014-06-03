@@ -137,7 +137,7 @@ class MigrationMonitor ( ):
         while True:
             try:
                 # Pull data from message queue
-                [data_type, pkt] = self.message_queue.get(timeout=3)
+                [data_type, pkt] = self.message_queue.get(timeout=10)
 
             except Queue.Empty:
                 # No data has been seen, handle timeouts
@@ -259,10 +259,15 @@ class ReceiverThread (Thread):
         self.start()
 
     def run(self):
-        socketIO = sioc.SocketIO(SOCKETIO_HOST, SOCKETIO_PORT)
-        self.stream_namespace = socketIO.define(StreamReceiver, '/{}'.format(SOCKETIO_NAMESPACE))
-        self.stream_namespace.set_data(self.query, self.data_type, self.message_queue, self.stream_namespace)
-        socketIO.wait()
+        while True:
+            try:
+                socketIO = sioc.SocketIO(SOCKETIO_HOST, SOCKETIO_PORT)
+                self.stream_namespace = socketIO.define(StreamReceiver, '/{}'.format(SOCKETIO_NAMESPACE))
+                self.stream_namespace.set_data(self.query, self.data_type, self.message_queue, self.stream_namespace)
+                socketIO.wait()
+            except sioc.exceptions.ConnectionError:
+                # ignore error and continue
+                socketIO.disconnect()
 
 
 class StreamReceiver (sioc.BaseNamespace):
