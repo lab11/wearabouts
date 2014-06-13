@@ -175,14 +175,18 @@ def post_to_gatd(fitbit_id, rssi):
                 'fitbit_id' : 'None'
                 }
 
-    # This is the post address for fitbitLocator
-    print("starting post to GATD of" + str(json.dumps(data)))
-    req = urllib2.Request(FITBIT_POST_ADDR)
-    req.add_header('Content-Type', 'application/json')
+    try:
+        # This is the post address for fitbitLocator
+        print("starting post to GATD of" + str(json.dumps(data)))
+        req = urllib2.Request(FITBIT_POST_ADDR)
+        req.add_header('Content-Type', 'application/json')
 
-    # Actually post to GATD
-    response = urllib2.urlopen(req, json.dumps(data))
-    print("POST complete")
+        # Actually post to GATD
+        response = urllib2.urlopen(req, json.dumps(data))
+        print("POST complete")
+    except BadStatusLine:
+        # Ignore error and carry on
+        print("Failure to POST")
 
 class FitbitMonitor():
 
