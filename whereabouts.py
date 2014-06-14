@@ -49,6 +49,10 @@ def main( ):
         print("")
         user_input = raw_input("Select a location or enter a new one: ")
 
+        if user_input == '':
+            print("Invalid selection")
+            exit()
+
         if user_input.isdigit():
             user_input = int(user_input)
             if 0 <= user_input < index:
