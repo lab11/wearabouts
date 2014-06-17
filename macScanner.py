@@ -12,6 +12,11 @@ from threading import Thread
 import Queue
 import urllib2
 import json
+import httplib
+
+TOTAL_COUNT = 0
+UNIQUE_COUNT = 0
+TIME_DURATION = time.time()
 
 USAGE ="""
 To perform a one-time scan, specify 'test'
@@ -33,7 +38,8 @@ KNOWN_DEVICES = {
         '8c:3a:e3:5d:2f:64': 'Neal Smartphone',
         '00:26:bb:07:2b:35': 'Thomas Laptop',
         '3c:ab:8e:66:40:25': 'David Smartphone',
-        '8c:a9:82:ba:65:3c': 'Noah Laptop',
+        '8c:a9:82:ba:65:3c': 'Noah N Laptop',
+        '8c:58:77:84:7c:3e': 'Noah N Smartphone',
         '14:10:9f:d4:69:cf': 'Pat Laptop',
         'a0:0b:ba:ca:78:66': '4908parrot',
         '10:68:3f:4f:9f:7f': '4908nexus4',
@@ -61,7 +67,8 @@ KNOWN_DEVICES = {
         'ec:1a:59:f7:a9:ed': '4908wemo7',
         'ec:1a:59:f7:f5:11': '4908wemo8',
         '00:05:CD:29:D2:80': '4908audio',
-        '00:18:23:22:a2:ba': '4908video'
+        '00:18:23:22:a2:ba': '4908video',
+        '00:23:eb:dc:4b:60': '?Noah K Laptop?'
         }
 
 def main():
@@ -107,11 +114,12 @@ def main():
     
     # create thread to handle posting to GATD if desired
     msg_queue = None
+    poster_thread = None
     if post_to_gatd:
         msg_queue = Queue.Queue()
-        GATDPoster(msg_queue)
+        poster_thread = GATDPoster(msg_queue)
 
-    scanner = MACScanner(queue=msg_queue)
+    scanner = MACScanner(queue=msg_queue, thread=poster_thread)
 
     while True:
         scanner.hop()
@@ -124,10 +132,11 @@ class MACScanner():
                     36, 38, 40, 44, 46, 48,
                     149, 151, 153, 157, 159, 161, 165]
     
-    def __init__(self, NUM_SAMPLES=5, queue=None, print_all=False):
-        self.NUM_SAMPLES = NUM_SAMPLES
+    def __init__(self, sample_window=60, queue=None, print_all=False, thread=None):
+        self.sample_window = sample_window
         self.msg_queue = queue
         self.print_all = print_all
+        self.thread = thread
 
         self.channel_index = 0
         self.devices = {}
@@ -148,6 +157,7 @@ class MACScanner():
             return int(round(srtd[mid]))
 
     def _update_device(self, mac_addr, pkt):
+        global TOTAL_COUNT, UNIQUE_COUNT
 
         # throw out invalid data
         if mac_addr in ['ff:ff:ff:ff:ff:ff', '00:00:00:00:00:00', None]:
@@ -158,29 +168,48 @@ class MACScanner():
             return
         if (mac_addr[0:5] == '33:33' or mac_addr[0:8] == '01:00:5e' or
                 mac_addr[0:8] == '00:00:5e'):
-            # IPv6 multicast, IPv4 multicast, and IPv4 unicast respectively
+            # IPv6 multicast, IPv4 multicast, and IPv4 unicast, and respectively
+            return
+        if (mac_addr in ['01:00:0c:cc:cc:cc', '01:00:0c:cc:cc:cd',
+                '01:80:C2:00:00:00', '01:80:C2:00:00:03', '01:80:C2:00:00:0E',
+                '01:80:C2:00:00:08', '01:80:C2:00:00:01', '01:80:C2:00:00:02']):
+            # various multicast addresses (http://en.wikipedia.org/wiki/Multicast_address)
+            return
+        if (mac_addr[0:8] == 'ec:1a:59' or mac_addr[0:8] == '08:1f:f3' or
+                mac_addr[0:8] == '00:23:eb'):
+            # Cisco and Belkin mac addresses. Most likely correlate to routers
+            #   for MWireless. This one is a little iffy to throw out...
             return
 
         # init device if necessary
         if mac_addr not in self.devices:
+            UNIQUE_COUNT += 1
             self.devices[mac_addr] = {}
             self.devices[mac_addr]['count'] = 0
-            self.devices[mac_addr]['rssi'] = {'average': -200, 'samples': []}
+            self.devices[mac_addr]['rssi'] = {'average': -200, 'newest': -200, 'samples': {}}
         
         # save various metadata about the connection
         dev = self.devices[mac_addr]
         dev['count'] += 1
         dev['channel'] = self.wifi_channels[self.channel_index]
-        dev['timestamp'] = time.time()
+        current_time = time.time()
+        dev['timestamp'] = current_time
         
-        # save RSSI data. Only keep most recent values
-        dev['rssi']['samples'].append(self._getRSSI(pkt))
-        if len(dev['rssi']['samples']) > self.NUM_SAMPLES:
-            dev['rssi']['samples'].pop(0)
-        dev['rssi']['average'] = self._median(dev['rssi']['samples'])
+        # save RSSI data. Only keep values from within the last minute
+        for timestamp in dev['rssi']['samples'].keys():
+            if float(timestamp) < (current_time - self.sample_window):
+                del dev['rssi']['samples'][timestamp]
+        dev['rssi']['samples'][current_time] = self._getRSSI(pkt)
+        dev['rssi']['average'] = self._median(dev['rssi']['samples'].values())
 
         # push to message queue if it exists
+        TOTAL_COUNT += 1
         if self.msg_queue != None:
+            # check if thread is still alive
+            if not self.thread.isAlive():
+                print("Post to GATD thread died!!")
+                sys.exit(1)
+            # push data to thread to be posted
             self.msg_queue.put([mac_addr, dev])
 
     def _print_device(self, index, mac_addr):
@@ -270,9 +299,9 @@ class GATDPoster(Thread):
             data = {
                     'location_str': LOCATION,
                     'mac_addr': mac_addr,
-                    'rssi': dev['rssi']['samples'][-1],
+                    'rssi': dev['rssi']['newest'],
                     'avg_rssi': dev['rssi']['average'],
-                    'channel': dev['timestamp']
+                    'channel': dev['channel']
                     }
 
             # post to GATD
@@ -281,7 +310,7 @@ class GATDPoster(Thread):
                 req = urllib2.Request(MACADDR_POST_ADDR)
                 req.add_header('Content-Type', 'application/json')
                 response = urllib2.urlopen(req, json.dumps(data))
-            except BadStatusLine:
+            except httplib.BadStatusLine:
                 # ignore error and carry on
                 print("Failure to POST")
 
@@ -301,6 +330,11 @@ def get_scan_locations():
 
 def sigint_handler(signum, frame):
     # exit the program if we get a CTRL-C
+    global TOTAL_COUNT, UNIQUE_COUNT, TIME_DURATION
+    print("\n")
+    print("Unique Devices: " + str(UNIQUE_COUNT))
+    print("Total Packets Scanned: " + str(TOTAL_COUNT))
+    print("Total Scan Time: " + str(int(round(time.time() - TIME_DURATION))) + " seconds")
     sys.exit(0)
 
 if __name__ == "__main__":

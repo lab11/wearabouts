@@ -18,6 +18,7 @@ import sys
 from threading import Thread, Lock
 from time import sleep, strftime, time, localtime
 import urllib2
+import httplib
 import usb
 
 try:
@@ -188,7 +189,7 @@ def post_to_gatd(fitbit_id, rssi):
         # Actually post to GATD
         response = urllib2.urlopen(req, json.dumps(data))
         print("POST complete")
-    except BadStatusLine:
+    except httplib.BadStatusLine:
         # Ignore error and carry on
         print("Failure to POST")
 

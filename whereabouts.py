@@ -69,11 +69,13 @@ def main( ):
 
     fitbit_query = {'profile_id': 'dwgY2s6mEu', 'location_str': location}
     door_query = {'profile_id': 'U8H29zqH0i', 'location_str': location}
+    macAddr_query = {'profile_id': 'PGMR22B9wP', 'location_str': location}
     message_queue = Queue.Queue()
 
     # start threads to receive data from GATD
     ReceiverThread(fitbit_query, 'fitbit', message_queue)
     ReceiverThread(door_query, 'door', message_queue)
+    ReceiverThread(macAddr_query, 'macAddr', message_queue)
 
     # start migration monitor
     mm = MigrationMonitor(location, message_queue)
@@ -114,20 +116,6 @@ def post_to_gatd(location, people_list, present_since):
     response = urllib2.urlopen(req, json.dumps(data))
     #print("POST complete")
 
-def determine_presence(data):
-    if ('fitbit' in data):
-        # if the rssi of the fitbit data supports user as in the room
-        if (data['fitbit'] >= -83):
-            return True
-
-    if ('rfid' in data and 'doors' in data):
-        # if the door hasn't been opened since they swiped and its been
-        #   less than half an hour
-        if (data['doors'] < 2 and (time.time() - data['rfid'] < 30*60)):
-            return True
-
-    return False
-
 
 class MigrationMonitor ( ):
     presence_data = {}
@@ -137,31 +125,49 @@ class MigrationMonitor ( ):
         self.location = location
         self.message_queue = message_queue
 
+        self.last_locate = 0
+        self.last_fitbit = 0
+
     def monitor(self):
         while True:
+            data_type = 'None'
+            pkt = None
             try:
                 # Pull data from message queue
                 [data_type, pkt] = self.message_queue.get(timeout=10)
 
             except Queue.Empty:
                 # No data has been seen, handle timeouts
+                pass
 
-                # fitbit data comes in discovery scan groupings. If too much
-                #   time has passed between packets, we can assume that the
-                #   group is completed
-                if self.fitbit_group:
-                    for uniqname in self.presence_data:
-                        if uniqname in self.fitbit_group:
-                            self.presence_data[uniqname]['fitbit'] = self.fitbit_group[uniqname]
-                        else:
-                            self.presence_data[uniqname]['fitbit'] = -100
-                    self.fitbit_group = {}
-                    self.locate()
+            current_time = int(round(time.time()))
 
-                # no packet to parse, wait again
-                continue
+            # fitbit data comes in discovery scan groupings. If too much
+            #   time has passed between packets, we can assume that the
+            #   group is completed
+            if ((current_time - self.last_fitbit) > 12 and self.fitbit_group):
+                for uniqname in self.presence_data:
+                    # create dict for user
+                    if 'fitbit' not in self.presence_data[uniqname]:
+                        self.presence_data[uniqname]['fitbit'] = {}
+
+                    # add data for user
+                    if uniqname in self.fitbit_group:
+                        self.presence_data[uniqname]['fitbit']['rssi'] = self.fitbit_group[uniqname]
+                    else:
+                        self.presence_data[uniqname]['fitbit']['rssi'] = -100
+                    self.presence_data[uniqname]['fitbit']['time'] = current_time
+
+                self.fitbit_group = {}
+                self.locate()
+
+            # automatically re-run locate if it's been static for 5 minutes
+            if (current_time - self.last_locate) > 5*60:
+                self.locate()
 
             # skip packet if it doesn't contain enough data for whereabouts use
+            if pkt == None:
+                continue
             if 'location_str' not in pkt:
                 continue
             if 'time' not in pkt:
@@ -172,7 +178,7 @@ class MigrationMonitor ( ):
                 continue
 
             # get uniqname from packet
-            uniqname = ""
+            uniqname = ''
             if 'uniqname' in pkt:
                 if 'full_name' not in pkt:
                     continue
@@ -181,6 +187,26 @@ class MigrationMonitor ( ):
                     self.presence_data[uniqname] = {}
                     self.presence_data[uniqname]['full_name'] = pkt['full_name']
                     self.presence_data[uniqname]['present_since'] = 0
+            # allow packets to continue without uniqname in order to handle door events
+
+            # MAC address data
+            # This data comes in single packets identifying a detected MAC
+            #   address, timestamp, and RSSI value (averaged over one minute).
+            # People present records rssi of the most recent scan as well as
+            #   the time. Too low of an RSSI means not in the room. Too long
+            #   since a packet has been received means not in the room.
+            if data_type == 'macAddr' and uniqname != '':
+                if 'avg_rssi' not in pkt or 'time' not in pkt:
+                    continue
+
+                # create dict for user
+                if 'macAddr' not in self.presence_data[uniqname]:
+                    self.presence_data[uniqname]['macAddr'] = {}
+
+                # update user information
+                self.presence_data[uniqname]['macAddr']['rssi'] = pkt['avg_rssi']
+                self.presence_data[uniqname]['macAddr']['time'] = int(round(pkt['time']/1000))
+                self.locate()
 
             # fitbit data
             # This data comes in discovery scan groups. Keep a list of group
@@ -188,8 +214,11 @@ class MigrationMonitor ( ):
             # People present records rssi of the most recent scan, -100 means
             #   the person was not seen
             if data_type == 'fitbit':
+                self.last_fitbit = current_time
+
+                # add user to grouping of fitbit data
                 if uniqname != 'None':
-                    # add user to group
+                    print("Got fitbit data")
                     self.fitbit_group[uniqname] = pkt['rssi']
                 else:
                     self.fitbit_group[uniqname] = -100
@@ -202,21 +231,27 @@ class MigrationMonitor ( ):
             # People present records timestamp of last rfid event and number of
             #   door open events since last rfid scan
             if data_type == 'door':
-                #print("I got a door packet: " + str(pkt))
-                if 'type' not in pkt:
+                if 'type' not in pkt or 'time' not in pkt:
                     continue
+
                 if pkt['type'] == 'rfid':
+                    # create dict for user
+                    if 'door' not in self.presence_data[uniqname]:
+                        self.presence_data[uniqname]['door'] = {}
                     # update user information
-                    self.presence_data[uniqname]['rfid'] = time.time()
-                    self.presence_data[uniqname]['doors'] = 0
+                    self.presence_data[uniqname]['door']['time'] = int(round(pkt['time']/1000))
+                    self.presence_data[uniqname]['door']['open_count'] = 0
                     self.locate()
-                elif pkt['type'] == 'door_open':
+
+                if pkt['type'] == 'door_open':
                     for present_uniqname in self.presence_data:
-                        if 'doors' in self.presence_data[present_uniqname]:
-                            self.presence_data[present_uniqname]['doors'] += 1
+                        if ('door' in self.presence_data[present_uniqname]):
+                            self.presence_data[present_uniqname]['door']['open_count'] += 1
                     self.locate()
 
     def locate(self):
+        self.last_locate = int(round(time.time()))
+
         # create list of people. Each person is a dict of {uniqname: full_name}
         people_present = []
 
@@ -228,10 +263,10 @@ class MigrationMonitor ( ):
             #print(uniqname + ": " + str(determine_presence(self.presence_data[uniqname])) + "\n"
             #        + str(self.presence_data[uniqname]))
 
-            if determine_presence(self.presence_data[uniqname]):
+            if self.determine_presence(self.presence_data[uniqname], uniqname):
                 # person has been found to be present at this location
                 if (self.presence_data[uniqname]['present_since'] == 0):
-                    self.presence_data[uniqname]['present_since'] = time.time()
+                    self.presence_data[uniqname]['present_since'] = self.last_locate
 
                 # add to lists
                 people_present.append({uniqname: self.presence_data[uniqname]['full_name']})
@@ -243,6 +278,35 @@ class MigrationMonitor ( ):
 
         #post to GATD
         post_to_gatd(self.location, people_present, present_since)
+
+    def determine_presence(self, data, uniqname):
+        if 'fitbit' in data:
+            # if the rssi of the fitbit data supports user as in the room
+            if ((time.time() - data['fitbit']['time']) < 10*60 and
+                    data['fitbit']['rssi'] >= -83):
+                print(uniqname + " present by fitbit " + str(data['fitbit']))
+                return True
+
+        if 'macAddr' in data:
+            #XXX: -50 is an arbitrary choice. Need to actually look at distributions
+            #   especially the conference room
+            if ((time.time() - data['macAddr']['time']) < 5*60 and 
+                    data['macAddr']['rssi'] >= -50):
+                # if they were seen less than 5 minutes ago and the rssi supports
+                #   the user as in the room
+                print(uniqname + " present by macAddr " + str(data['macAddr']))
+                return True
+
+        if 'door' in data:
+            # if the door hasn't been opened since they swiped and its been
+            #   less than half an hour
+            if ((time.time() - data['door']['time'] < 30*60) and
+                    data['door']['open_count'] < 2):
+                print(uniqname + " present by rfid " + str(data['door']))
+                return True
+
+        print(uniqname + " not present")
+        return False
 
 
 class ReceiverThread (Thread):
