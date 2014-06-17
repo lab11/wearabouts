@@ -68,7 +68,8 @@ KNOWN_DEVICES = {
         'ec:1a:59:f7:f5:11': '4908wemo8',
         '00:05:CD:29:D2:80': '4908audio',
         '00:18:23:22:a2:ba': '4908video',
-        '00:23:eb:dc:4b:60': '?Noah K Laptop?'
+        '00:23:eb:dc:4b:60': '?Noah K Laptop?',
+        '38:aa:3c:f6:d7:68': 'Will Smartphone'
         }
 
 def main():
@@ -243,6 +244,7 @@ class MACScanner():
 
             # clear terminal screen and print dict
             os.system('cls' if os.name == 'nt' else 'clear')
+            print("Time: " + time.strftime("%I:%M:%S"))
 
             index = 0
             if self.print_all:
@@ -310,9 +312,9 @@ class GATDPoster(Thread):
                 req = urllib2.Request(MACADDR_POST_ADDR)
                 req.add_header('Content-Type', 'application/json')
                 response = urllib2.urlopen(req, json.dumps(data))
-            except httplib.BadStatusLine:
+            except (httplib.BadStatusLine, urllib2.URLError), e:
                 # ignore error and carry on
-                print("Failure to POST")
+                print("Failure to POST" + str(e))
 
 
 def get_scan_locations():
