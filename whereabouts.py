@@ -280,9 +280,11 @@ class MigrationMonitor ( ):
         post_to_gatd(self.location, people_present, present_since)
 
     def determine_presence(self, data, uniqname):
+        current_time = time.time()
+
         if 'fitbit' in data:
             # if the rssi of the fitbit data supports user as in the room
-            if ((time.time() - data['fitbit']['time']) < 10*60 and
+            if ((current_time - data['fitbit']['time']) < 10*60 and
                     data['fitbit']['rssi'] >= -83):
                 print(uniqname + " present by fitbit " + str(data['fitbit']))
                 return True
@@ -290,7 +292,7 @@ class MigrationMonitor ( ):
         if 'macAddr' in data:
             #XXX: -50 is an arbitrary choice. Need to actually look at distributions
             #   especially the conference room
-            if ((time.time() - data['macAddr']['time']) < 5*60 and 
+            if ((current_time - data['macAddr']['time']) < 5*60 and 
                     data['macAddr']['rssi'] >= -50):
                 # if they were seen less than 5 minutes ago and the rssi supports
                 #   the user as in the room
@@ -300,10 +302,17 @@ class MigrationMonitor ( ):
         if 'door' in data:
             # if the door hasn't been opened since they swiped and its been
             #   less than half an hour
-            if ((time.time() - data['door']['time'] < 30*60) and
+            if ((current_time - data['door']['time'] < 30*60) and
                     data['door']['open_count'] < 2):
                 print(uniqname + " present by rfid " + str(data['door']))
                 return True
+
+        #XXX: This is good for stability but bad for immediate accuracy
+        if 'present_since' in data:
+            # add a hysteresis so that people are counted as "in" for at least
+            #   a full minute
+            if ((current_time - data['present_since']) < 60):
+                print(uniqname + " present by time " + str(data['present_since']))
 
         print(uniqname + " not present")
         return False
