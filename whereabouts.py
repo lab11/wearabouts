@@ -318,7 +318,7 @@ class MigrationMonitor ( ):
                 print(uniqname + " present by time " + str(data['last_seen']))
                 return True
 
-        print(uniqname + " not present")
+        print(uniqname + " not present: " + str(data))
         return False
 
 
