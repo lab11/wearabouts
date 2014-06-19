@@ -69,7 +69,9 @@ KNOWN_DEVICES = {
         '00:05:CD:29:D2:80': '4908audio',
         '00:18:23:22:a2:ba': '4908video',
         '00:23:eb:dc:4b:60': '?Noah K Laptop?',
-        '38:aa:3c:f6:d7:68': 'Will Smartphone'
+        '38:aa:3c:f6:d7:68': 'Will Smartphone',
+        '40:0e:85:f1:80:8a': 'Meghan Smartphone',
+        '3c:15:c2:bc:c1:68': 'Meghan Big Laptop'
         }
 
 def main():
@@ -256,11 +258,14 @@ class MACScanner():
                 sorted_macs = sorted(self.devices,
                         key=lambda mac_addr: self.devices[mac_addr]['rssi']['average'],
                         reverse=True)
+                other_lines = 52 - len([x for x in sorted_macs if x in KNOWN_DEVICES])
 
                 for mac_addr in sorted_macs:
                     index += 1
-                    if index <= 50 or mac_addr in KNOWN_DEVICES:
-                        # print first 50 devices plus any remaining labeled devices
+                    if other_lines > 0 or mac_addr in KNOWN_DEVICES:
+                        # print all labeled devices and the top remaining devices that fit on screen
+                        if mac_addr not in KNOWN_DEVICES:
+                            other_lines -= 1
                         self._print_device(index, mac_addr)
                         pass
 
