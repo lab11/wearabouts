@@ -280,13 +280,14 @@ class MigrationMonitor ( ):
         post_to_gatd(self.location, people_present, present_since)
 
     def determine_presence(self, data, uniqname):
-        current_time = time.time()
+        current_time = int(round(time.time()))
 
         if 'fitbit' in data:
             # if the rssi of the fitbit data supports user as in the room
             if ((current_time - data['fitbit']['time']) < 10*60 and
                     data['fitbit']['rssi'] >= -83):
                 print(uniqname + " present by fitbit " + str(data['fitbit']))
+                self.presence_data[uniqname]['last_seen'] = current_time
                 return True
 
         if 'macAddr' in data:
@@ -297,6 +298,7 @@ class MigrationMonitor ( ):
                 # if they were seen less than 5 minutes ago and the rssi supports
                 #   the user as in the room
                 print(uniqname + " present by macAddr " + str(data['macAddr']))
+                self.presence_data[uniqname]['last_seen'] = current_time
                 return True
 
         if 'door' in data:
@@ -305,14 +307,16 @@ class MigrationMonitor ( ):
             if ((current_time - data['door']['time'] < 30*60) and
                     data['door']['open_count'] < 2):
                 print(uniqname + " present by rfid " + str(data['door']))
+                self.presence_data[uniqname]['last_seen'] = current_time
                 return True
 
         #XXX: This is good for stability but bad for immediate accuracy
-        if 'present_since' in data:
+        if 'last_seen' in data:
             # add a hysteresis so that people are counted as "in" for at least
-            #   a full minute
-            if ((current_time - data['present_since']) < 60):
-                print(uniqname + " present by time " + str(data['present_since']))
+            #   a full minute. But don't update the last_seen time!
+            if ((current_time - data['last_seen']) < 60):
+                print(uniqname + " present by time " + str(data['last_seen']))
+                return True
 
         print(uniqname + " not present")
         return False
