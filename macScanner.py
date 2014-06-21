@@ -1,18 +1,19 @@
 #!/usr/bin/env python
 
-# sudo ifconfig wlan0 down
-# sudo iwconfig wlan0 mode monitor
-# sudo ifconfig wlan0 up
-
 from scapy.all import *
 import time
 import signal
 import sys
+import os
 from threading import Thread
 import Queue
 import urllib2
 import json
 import httplib
+
+if os.geteuid() != 0:
+    print('Root privileges needed to run scans.')
+    sys.exit(1)
 
 TOTAL_COUNT = 0
 UNIQUE_COUNT = 0
@@ -117,7 +118,7 @@ def main():
     if LOCATION == 'test':
         print('Running test scans...')
         post_to_gatd = False
-    
+
     # create thread to handle posting to GATD if desired
     msg_queue = None
     poster_thread = None
@@ -146,6 +147,22 @@ class MACScanner():
 
         self.channel_index = 0
         self.devices = {}
+        self.last_packet = time.time()
+
+        # need to set wlan0 into monitor mode
+        self._reset_wlan0()
+
+    def _reset_wlan0(self):
+        # attempt to configure the wireless card
+        if (os.system("ifconfig wlan0 down") != 0):
+            print("Error taking wlan0 down")
+            sys.exit(1)
+        if (os.system("iwconfig wlan0 mode monitor") != 0):
+            print("Error setting wlan0 to monitor mode")
+            sys.exit(1)
+        if (os.system("ifconfig wlan0 up") != 0):
+            print("Error bringing wlan0 up")
+            sys.exit(1)
 
     def _getRSSI(self, pkt):
         return (ord(pkt.notdecoded[-4:-3])-256)
@@ -182,8 +199,9 @@ class MACScanner():
             # various multicast addresses (http://en.wikipedia.org/wiki/Multicast_address)
             return
         if (mac_addr[0:8] == 'ec:1a:59' or mac_addr[0:8] == '08:1f:f3' or
-                mac_addr[0:8] == '00:23:eb'):
-            # Cisco and Belkin mac addresses. Most likely correlate to routers
+                mac_addr[0:8] == '00:23:eb' or mac_addr[0:8] == '00:26:cb' or
+                mac_addr[0:8] == '84:1b:5e'):
+            # Cisco, Belkin, and Netgear mac addresses. Most likely correlate to routers
             #   for MWireless. This one is a little iffy to throw out...
             return
 
@@ -243,6 +261,8 @@ class MACScanner():
         global KNOWN_DEVICES
 
         if pkt.haslayer(Dot11):
+            self.last_packet = time.time()
+
             # update devices based on mac addresses in this packet
             self._update_device(pkt.addr1, pkt)
             self._update_device(pkt.addr2, pkt)
@@ -278,13 +298,21 @@ class MACScanner():
             if self.channel_index >= len(self.wifi_channels):
                 self.channel_index = 0
 
-            os.system("iwconfig wlan0 channel " + str(self.wifi_channels[self.channel_index]))
+            if (os.system("iwconfig wlan0 channel " +
+                    str(self.wifi_channels[self.channel_index])) != 0):
+                print("Failed to change channel!")
+                self._reset_wlan0()
             #print("NEW CHANNEL: Channel " + str(wifi_channels[channel_index]))
 
     def sniff(self, timeout=1):
             # run a time-limited scan on the channel
             sniff(iface="wlan0", prn = self.PacketHandler,
                     lfilter=(lambda x: x.haslayer(Dot11)), timeout=timeout)
+
+            # check if the wireless device stopped working (defined as 10
+            #   minutes without a single packet)
+            if (time.time() - self.last_packet) > 10*60:
+                self._reset_wlan0()
 
 
 class GATDPoster(Thread):
