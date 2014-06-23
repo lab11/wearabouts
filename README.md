@@ -13,12 +13,14 @@ data is stored to and pulled from [GATD](https://github.com/lab11/gatd)
 
 ## Fitbitfinder Installation steps
 1. Install galileo, a python utility for interacting with fitbits  
-    `sudo pip install galileo`
+    `sudo pip install galileo IPy socketIO-client`
 
 2. Modify usb permissions  
     `sudo cp 99-fitbit.rules /etc/udev/rules.d/99-fitbit.rules`
 
-3. Run fitbitfinder  
+3. Remove and re-insert Fitbit dongle
+
+4. Run fitbitfinder  
     `./fitbitfinder`
 
 
@@ -31,8 +33,7 @@ data is stored to and pulled from [GATD](https://github.com/lab11/gatd)
     `source venv/bin/activate`
 
 3. Install IPy and socketIO-client to virtual environment  
-    `pip install IPy`  
-    `pip install socketIO-client`
+    `pip install IPy socketIO-client`
 
 4. Replace init file from socketIO-client  
     `cp socketIO_client__init__.py venv/lib/python2.7/site-packages/socketIO_client/__init__.py`  
