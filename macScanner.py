@@ -75,7 +75,10 @@ KNOWN_DEVICES = {
         '3c:15:c2:bc:c1:68': 'Meghan Big Laptop',
         '58:b0:35:6e:d9:f5': 'Mike Mac Laptop',
         'f4:f5:a5:eb:8c:c6': 'Mike Smartphone',
-        '00:23:14:69:84:64': 'Mike Ubuntu Laptop'
+        '00:23:14:69:84:64': 'Mike Ubuntu Laptop',
+        '2c:44:01:c1:62:b4': 'Brad Smartphone',
+        'c8:e0:eb:17:cc:29': 'Brad Laptop',
+        'e8:2a:ea:5d:e9:f9': 'Eric Laptop'
         }
 
 def main():
