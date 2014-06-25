@@ -155,6 +155,7 @@ class MigrationMonitor ( ):
                     if uniqname in self.fitbit_group:
                         self.presence_data[uniqname]['fitbit']['rssi'] = self.fitbit_group[uniqname]
                     else:
+                        #print(cur_datetime() + "Changing " + uniqname + " to -100")
                         self.presence_data[uniqname]['fitbit']['rssi'] = -100
                     self.presence_data[uniqname]['fitbit']['time'] = current_time
 
@@ -221,6 +222,7 @@ class MigrationMonitor ( ):
                     print("Got fitbit data")
                     self.fitbit_group[uniqname] = pkt['rssi']
                 else:
+                    #print("Rewriting " + uniqname + " to -100")
                     self.fitbit_group[uniqname] = -100
 
             # door sensor data
@@ -286,7 +288,7 @@ class MigrationMonitor ( ):
             # if the rssi of the fitbit data supports user as in the room
             if ((current_time - data['fitbit']['time']) < 10*60 and
                     data['fitbit']['rssi'] >= -83):
-                print(uniqname + " present by fitbit " + str(data['fitbit']))
+                print(uniqname + " present by fitbit " + str(data))
                 self.presence_data[uniqname]['last_seen'] = current_time
                 return True
 
@@ -297,7 +299,7 @@ class MigrationMonitor ( ):
                     data['macAddr']['rssi'] >= -50):
                 # if they were seen less than 5 minutes ago and the rssi supports
                 #   the user as in the room
-                print(uniqname + " present by macAddr " + str(data['macAddr']))
+                print(uniqname + " present by macAddr " + str(data))
                 self.presence_data[uniqname]['last_seen'] = current_time
                 return True
 
@@ -306,7 +308,7 @@ class MigrationMonitor ( ):
             #   less than half an hour
             if ((current_time - data['door']['time'] < 30*60) and
                     data['door']['open_count'] < 2):
-                print(uniqname + " present by rfid " + str(data['door']))
+                print(uniqname + " present by rfid " + str(data))
                 self.presence_data[uniqname]['last_seen'] = current_time
                 return True
 
@@ -315,7 +317,7 @@ class MigrationMonitor ( ):
             # add a hysteresis so that people are counted as "in" for at least
             #   a full minute. But don't update the last_seen time!
             if ((current_time - data['last_seen']) < 60):
-                print(uniqname + " present by time " + str(data['last_seen']))
+                print(uniqname + " present by time " + str(data))
                 return True
 
         print(uniqname + " not present: " + str(data))
