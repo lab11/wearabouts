@@ -151,6 +151,7 @@ class MACScanner():
         self.channel_index = 0
         self.devices = {}
         self.last_packet = time.time()
+        self.last_update = 0
 
         # need to set wlan0 into monitor mode
         self._reset_wlan0()
@@ -271,29 +272,31 @@ class MACScanner():
             self._update_device(pkt.addr2, pkt)
 
             # clear terminal screen and print dict
-            os.system('cls' if os.name == 'nt' else 'clear')
-            print("Time: " + time.strftime("%I:%M:%S"))
+            if (time.time() - self.last_update) > 1:
+                self.last_update = time.time()
 
-            index = 0
-            if self.print_all:
-                for mac_addr in copy_list:
-                    index += 1
-                    self._print_device(index, mac_addr)
+                os.system('cls' if os.name == 'nt' else 'clear')
+                print("Time: " + time.strftime("%I:%M:%S"))
 
-            else:
-                sorted_macs = sorted(self.devices,
-                        key=lambda mac_addr: self.devices[mac_addr]['rssi']['average'],
-                        reverse=True)
-                other_lines = 52 - len([x for x in sorted_macs if x in KNOWN_DEVICES])
-
-                for mac_addr in sorted_macs:
-                    index += 1
-                    if other_lines > 0 or mac_addr in KNOWN_DEVICES:
-                        # print all labeled devices and the top remaining devices that fit on screen
-                        if mac_addr not in KNOWN_DEVICES:
-                            other_lines -= 1
+                index = 0
+                if self.print_all:
+                    for mac_addr in copy_list:
+                        index += 1
                         self._print_device(index, mac_addr)
-                        pass
+
+                else:
+                    sorted_macs = sorted(self.devices,
+                            key=lambda mac_addr: self.devices[mac_addr]['rssi']['average'],
+                            reverse=True)
+                    other_lines = 52 - len([x for x in sorted_macs if x in KNOWN_DEVICES])
+
+                    for mac_addr in sorted_macs:
+                        index += 1
+                        if other_lines > 0 or mac_addr in KNOWN_DEVICES:
+                            # print all labeled devices and the top remaining devices that fit on screen
+                            if mac_addr not in KNOWN_DEVICES:
+                                other_lines -= 1
+                            self._print_device(index, mac_addr)
 
     def hop(self):
             # hop to the next channel
