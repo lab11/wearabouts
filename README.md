@@ -12,7 +12,7 @@ data is stored to and pulled from [GATD](https://github.com/lab11/gatd)
 
 
 ## Fitbitfinder Installation steps
-1. Install galileo, a python utility for interacting with fitbits, and other python libraries
+1. Install galileo, a python utility for interacting with fitbits, and other python libraries  
     `sudo pip install galileo IPy socketIO-client`
 
 2. Modify usb permissions  
@@ -24,14 +24,14 @@ data is stored to and pulled from [GATD](https://github.com/lab11/gatd)
     `./fitbitfinder.py`
 
 ## MacScanner Installation steps
-1. Install scapy python library
-    `cd /tmp`
-    `wget http://www.secdev.org/projects/scapy/files/scapy-latest.tar.gz`
-    `tar zxvf scapy-latest.tar.gz`
-    `cd scapy-2.*`
+1. Install scapy python library  
+    `cd /tmp`  
+    `wget http://www.secdev.org/projects/scapy/files/scapy-latest.tar.gz`  
+    `tar zxvf scapy-latest.tar.gz`  
+    `cd scapy-2.*`  
     `sudo python setup.py install`
 
-2. Run macScanner
+2. Run macScanner  
     `sudo ./macScanner.py`
 
 
