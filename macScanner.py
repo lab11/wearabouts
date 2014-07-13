@@ -226,6 +226,7 @@ class MACScanner():
         dev['channel'] = self.wifi_channels[self.channel_index]
         current_time = time.time()
         dev['timestamp'] = current_time
+        dev['rssi']['newest'] = self._getRSSI(pkt)
         
         # save RSSI data. Only keep values from within the last minute
         for timestamp in dev['rssi']['samples'].keys():
