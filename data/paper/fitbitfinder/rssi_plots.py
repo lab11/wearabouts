@@ -329,7 +329,6 @@ if True:
 
 # Plot in-lab vs out-of-lab aggregates
 if True:
-
     # create aggregates
     inlab_agg = []
     outlab_agg = []

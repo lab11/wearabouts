@@ -1,7 +1,5 @@
 #!/usr/bin/env python2
 
-# I want to plot rssi values along with labels for each uniqname for 4908 and 4670
-
 import json
 import ast
 import time
@@ -56,7 +54,6 @@ with open('4908.data') as f:
         if timestamp not in data_dict:
             data_dict[timestamp] = []
 
-        #XXX: This might leave empty sets
         if loaded_data['rssi'] < -83:
             continue
 
@@ -74,12 +71,37 @@ for timestamp in range(1404776100000, 1404948600000, 300000):
         previous_time = recorded_time
 
     if previous_time == 0:
-        print(cur_datetime(timestamp) + ':  ' + "[u'None']")
+        print(str(timestamp) + ",0,0,0,0,0")
     else:
-        if len(data_dict[previous_time]) == 0:
-            print(cur_datetime(timestamp) + ':  ' + "[u'None']")
+        people_str = ","
+        people = data_dict[previous_time]
+
+        if 'bradjc' in people:
+            people_str += "1,"
         else:
-            print(cur_datetime(timestamp) + ':  ' + str(data_dict[previous_time]))
+            people_str += "0,"
+
+        if 'brghena' in people:
+            people_str += "1,"
+        else:
+            people_str += "0,"
+
+        if 'samkuo' in people:
+            people_str += "1,"
+        else:
+            people_str += "0,"
+
+        if 'tzachari' in people:
+            people_str += "1,"
+        else:
+            people_str += "0,"
+
+        if 'wwhuang' in people:
+            people_str += "1"
+        else:
+            people_str += "0"
+
+        print(str(timestamp) + people_str)
 
 exit()
 
