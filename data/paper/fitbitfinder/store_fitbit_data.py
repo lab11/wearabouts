@@ -23,8 +23,6 @@ query = {'profile_id': 'dwgY2s6mEu'}
 query['time'] = 365*24*3600*1000
 
 class stream_receiver (sioc.BaseNamespace):
-    file_dict = {}
-    last_sample = 0
 
     def on_reconnect (self):
         if 'time' in query:
@@ -35,40 +33,56 @@ class stream_receiver (sioc.BaseNamespace):
         stream_namespace.emit('query', query)
 
     def on_data (self, *args):
-        pkt = args[0]
+        process(args[0])
 
-        if 'time' not in pkt:
-            return
-        if (time.time() - self.last_sample) > 10:
-            self.last_sample = time.time()
-            print("At time: " + time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(pkt['time']/1000)))
+file_dict = {}
+last_sample = 0
 
-        # need to determine whether this should be added to data file
-        if 'location_str' not in pkt:
-            print(pkt)
-            exit()
-            return
-        # Note: I don't require a name for ble devices, because there are far less around,
-        #   and a much smaller chance of an unlabeled one residing in our lab
-        #if 'uniqname' not in pkt:
-        #    return
-        #if 'full_name' not in pkt:
-        #    return
+def process(pkt):
+    global last_sample, file_dict
 
-        # looks good. Create a file for it or clear existing file
-        loc = pkt['location_str']
-        if loc not in self.file_dict:
-            filename = str(loc[-4:]) + '.data'
-            file_obj = open(filename, 'w')
-            self.file_dict[loc] = file_obj
-            print("New file: " + filename)
+    if 'time' not in pkt:
+        return
+    if (time.time() - last_sample) > 10:
+        last_sample = time.time()
+        print("At time: " + time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(pkt['time']/1000)))
 
-        # write it down based on location
-        self.file_dict[loc].write(str(pkt) + '\n')
+    # need to determine whether this should be added to data file
+    if 'location_str' not in pkt:
+        print(pkt)
+        exit()
+        return
+
+    # Note: I don't require a name for ble devices, because there are far less around,
+    #   and a much smaller chance of an unlabeled one residing in our lab
+    #if 'uniqname' not in pkt:
+    #    return
+    #if 'full_name' not in pkt:
+    #    return
+
+    # looks good. Create a file for it or clear existing file
+    loc = pkt['location_str']
+    if loc not in file_dict:
+        filename = str(loc[-4:]) + '.data'
+        file_obj = open(filename, 'w')
+        file_dict[loc] = file_obj
+        print("New file: " + filename)
+
+    # write it down based on location
+    file_dict[loc].write(str(pkt) + '\n')
 
 
-socketIO = sioc.SocketIO(SOCKETIO_HOST, SOCKETIO_PORT)
-stream_namespace = socketIO.define(stream_receiver,
-	'/{}'.format(SOCKETIO_NAMESPACE))
+if True:
+    socketIO = sioc.SocketIO(SOCKETIO_HOST, SOCKETIO_PORT)
+    stream_namespace = socketIO.define(stream_receiver,
+	    '/{}'.format(SOCKETIO_NAMESPACE))
 
-socketIO.wait()
+    socketIO.wait()
+else:
+    import GatdDataExtractor
+
+    query = {"profile_id": "dwgY2s6mEu"}
+    gde = GatdDataExtractor.GatdDataExtractor()
+    data = gde.extract(parameters=query)
+    for row in data:
+        process(row)
