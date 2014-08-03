@@ -16,7 +16,9 @@ except ImportError:
     sys.exit(1)
 
 import logging
-logging.basicConfig()
+import logging.handlers
+
+LOG_FILENAME = 'whereabouts_log.out'
 
 USAGE = """
 Pulls data from various GATD streams to determine people in a given room
@@ -36,6 +38,14 @@ SOCKETIO_PORT      = 8082
 SOCKETIO_NAMESPACE = 'stream'
 
 def main( ):
+    global LOG_FILENAME
+
+    # setup logging
+    log = logging.getLogger('whereabouts_log')
+    log.setLevel(logging.DEBUG)
+    handler = logging.handlers.TimedRotatingFileHandler(LOG_FILENAME,
+            when='midnight', backupCount=7)
+    log.addHandler(handler)
 
     # get location from user
     location = ''
@@ -66,6 +76,7 @@ def main( ):
         location = sys.argv[1]
 
     print("Running whereabouts at " + location)
+    log.info("Running whereabouts at " + location)
 
     fitbit_query = {'profile_id': 'dwgY2s6mEu', 'location_str': location}
     door_query = {'profile_id': 'U8H29zqH0i', 'location_str': location}
@@ -78,7 +89,7 @@ def main( ):
     ReceiverThread(macAddr_query, 'macAddr', message_queue)
 
     # start migration monitor
-    mm = MigrationMonitor(location, message_queue)
+    mm = MigrationMonitor(location, message_queue, log)
     mm.monitor()
 
 def cur_datetime():
@@ -96,7 +107,7 @@ def get_fitbit_locations():
     else:
         return ['None']
 
-def post_to_gatd(location, people_list, present_since):
+def post_to_gatd(location, people_list, present_since, log=None):
 
     # Create standard data
     data = {
@@ -107,6 +118,8 @@ def post_to_gatd(location, people_list, present_since):
 
     # print the current list of people
     print(cur_datetime() + ": " + str([person.keys()[0] for person in people_list]) + "\n")
+    if log:
+        log.info(cur_datetime() + ": " + str([person.keys()[0] for person in people_list]) + "\n")
 
     #print("starting post to GATD of" + str(json.dumps(data)))
     req = urllib2.Request(PRESENCE_POST_ADDR)
@@ -121,9 +134,10 @@ class MigrationMonitor ( ):
     presence_data = {}
     fitbit_group = {}
 
-    def __init__(self, location, message_queue):
+    def __init__(self, location, message_queue, log):
         self.location = location
         self.message_queue = message_queue
+        self.log = log
 
         self.last_locate = 0
         self.last_fitbit = 0
@@ -219,7 +233,7 @@ class MigrationMonitor ( ):
 
                 # add user to grouping of fitbit data
                 if uniqname != 'None':
-                    print("Got fitbit data")
+                    #print("Got fitbit data")
                     self.fitbit_group[uniqname] = pkt['rssi']
                 else:
                     #print("Rewriting " + uniqname + " to -100")
@@ -279,7 +293,7 @@ class MigrationMonitor ( ):
                 self.presence_data[uniqname]['present_since'] = 0
 
         #post to GATD
-        post_to_gatd(self.location, people_present, present_since)
+        post_to_gatd(self.location, people_present, present_since, log=self.log)
 
     def determine_presence(self, data, uniqname):
         current_time = int(round(time.time()))
@@ -288,7 +302,7 @@ class MigrationMonitor ( ):
             # if the rssi of the fitbit data supports user as in the room
             if ((current_time - data['fitbit']['time']) < 10*60 and
                     data['fitbit']['rssi'] >= -83):
-                print(uniqname + " present by fitbit " + str(data))
+                self.log.debug(uniqname + " present by fitbit " + str(data))
                 self.presence_data[uniqname]['last_seen'] = current_time
                 return True
 
@@ -299,7 +313,7 @@ class MigrationMonitor ( ):
                     data['macAddr']['rssi'] >= -50):
                 # if they were seen less than 5 minutes ago and the rssi supports
                 #   the user as in the room
-                print(uniqname + " present by macAddr " + str(data))
+                self.log.debug(uniqname + " present by macAddr " + str(data))
                 self.presence_data[uniqname]['last_seen'] = current_time
                 return True
 
@@ -308,7 +322,7 @@ class MigrationMonitor ( ):
             #   less than half an hour
             if ((current_time - data['door']['time'] < 30*60) and
                     data['door']['open_count'] < 2):
-                print(uniqname + " present by rfid " + str(data))
+                self.log.debug(uniqname + " present by rfid " + str(data))
                 self.presence_data[uniqname]['last_seen'] = current_time
                 return True
 
@@ -317,10 +331,10 @@ class MigrationMonitor ( ):
             # add a hysteresis so that people are counted as "in" for at least
             #   a full minute. But don't update the last_seen time!
             if ((current_time - data['last_seen']) < 60):
-                print(uniqname + " present by time " + str(data))
+                self.log.debug(uniqname + " present by time " + str(data))
                 return True
 
-        print(uniqname + " not present: " + str(data))
+        self.log.debug(uniqname + " not present: " + str(data))
         return False
 
 
