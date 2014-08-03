@@ -117,7 +117,7 @@ def post_to_gatd(location, people_list, present_since, log=None):
             }
 
     # print the current list of people
-    print(cur_datetime() + ": " + str([person.keys()[0] for person in people_list]) + "\n")
+    print(cur_datetime() + ": " + str([person.keys()[0] for person in people_list]))
     if log:
         log.info(cur_datetime() + ": " + str([person.keys()[0] for person in people_list]) + "\n")
 
