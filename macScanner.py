@@ -202,8 +202,8 @@ class MACScanner():
             # IPv6 multicast, IPv4 multicast, and IPv4 unicast, and respectively
             return
         if (mac_addr in ['01:00:0c:cc:cc:cc', '01:00:0c:cc:cc:cd',
-                '01:80:C2:00:00:00', '01:80:C2:00:00:03', '01:80:C2:00:00:0E',
-                '01:80:C2:00:00:08', '01:80:C2:00:00:01', '01:80:C2:00:00:02']):
+                '01:80:c2:00:00:00', '01:80:c2:00:00:03', '01:80:c2:00:00:0e',
+                '01:80:c2:00:00:08', '01:80:c2:00:00:01', '01:80:c2:00:00:02']):
             # various multicast addresses (http://en.wikipedia.org/wiki/Multicast_address)
             return
         if (mac_addr[0:8] == 'ec:1a:59' or mac_addr[0:8] == '08:1f:f3' or
