@@ -1,0 +1,42 @@
+#!/bin/bash
+# cause sometimes you don't want to do things elegantly and you just need a big stick
+
+# grab list of current screens
+screen_list=$(sudo screen -list)
+
+# check for fitbitfinder
+if echo $screen_list | grep -q "fitbitfinder"
+then
+    echo "fitbitfinder already running"
+else
+    sudo screen -dmS fitbitfinder python /home/brghena/whereabouts/fitbitfinder.py 'University of Michigan|BBB|4908'
+    echo "Started fitbitfinder"
+fi
+
+# check for whereabouts4908
+if echo $screen_list | grep -q "whereabouts4908"
+then
+    echo "whereabouts4908 already running"
+else
+    sudo screen -dmS whereabouts4908 python /home/brghena/whereabouts/whereabouts.py 'University of Michigan|BBB|4908'
+    echo "Started whereabouts4908"
+fi
+
+# check for whereabouts2909
+if echo $screen_list | grep -q "whereabouts2909"
+then
+    echo "whereabouts2909 already running"
+else
+    sudo screen -dmS whereabouts2909 python /home/brghena/whereabouts/whereabouts.py 'University of Michigan|BBB|2909'
+    echo "Started whereabouts2909"
+fi
+
+# check for light control script
+if echo $screen_list | grep -q "light-control"
+then
+    echo "light-control already running"
+else
+    sudo screen -dmS light-control python /home/brghena/apollito/light-control.py 'University of Michigan|BBB|4908'
+    echo "Started light-control"
+fi
+
