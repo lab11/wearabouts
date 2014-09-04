@@ -18,8 +18,6 @@ except ImportError:
 import logging
 import logging.handlers
 
-LOG_FILENAME = 'whereabouts_log.out'
-
 USAGE = """
 Pulls data from various GATD streams to determine people in a given room
 
@@ -38,15 +36,6 @@ SOCKETIO_PORT      = 8082
 SOCKETIO_NAMESPACE = 'stream'
 
 def main( ):
-    global LOG_FILENAME
-
-    # setup logging
-    log = logging.getLogger('whereabouts_log')
-    log.setLevel(logging.DEBUG)
-    handler = logging.handlers.TimedRotatingFileHandler(LOG_FILENAME,
-            when='midnight', backupCount=7)
-    log.addHandler(handler)
-
     # get location from user
     location = ''
     if len(sys.argv) != 2:
@@ -78,6 +67,15 @@ def main( ):
     print("Running whereabouts at " + location)
     log.info("Running whereabouts at " + location)
 
+    # setup logging
+    log = logging.getLogger('whereabouts_log')
+    log.setLevel(logging.DEBUG)
+    log_filename = 'whereabouts_log' + str(location.split('|')[-1]) + '.out'
+    handler = logging.handlers.TimedRotatingFileHandler(log_filename,
+            when='midnight', backupCount=7)
+    log.addHandler(handler)
+
+    # gatd data
     fitbit_query = {'profile_id': 'dwgY2s6mEu', 'location_str': location}
     door_query = {'profile_id': 'U8H29zqH0i', 'location_str': location}
     macAddr_query = {'profile_id': 'PGMR22B9wP', 'location_str': location}
