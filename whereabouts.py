@@ -65,15 +65,15 @@ def main( ):
         location = sys.argv[1]
 
     print("Running whereabouts at " + location)
-    log.info("Running whereabouts at " + location)
 
     # setup logging
     log = logging.getLogger('whereabouts_log')
     log.setLevel(logging.DEBUG)
-    log_filename = 'whereabouts_log' + str(location.split('|')[-1]) + '.out'
+    log_filename = 'whereabouts_log_' + str(location.split('|')[-1]) + '.out'
     handler = logging.handlers.TimedRotatingFileHandler(log_filename,
             when='midnight', backupCount=7)
     log.addHandler(handler)
+    log.info("Running whereabouts at " + location)
 
     # gatd data
     fitbit_query = {'profile_id': 'dwgY2s6mEu', 'location_str': location}
