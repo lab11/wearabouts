@@ -82,7 +82,9 @@ KNOWN_DEVICES = {
         '8c:a9:82:a3:f9:9b': 'Rohan Laptop',
         '88:1f:a1:78:4f:66': 'Rohan Smartphone',
         '7c:d1:c3:76:df:c0': 'Nathan Laptop',
-        '40:b3:95:e1:1b:c2': 'Nathan Smartphone'
+        '40:b3:95:e1:1b:c2': 'Nathan Smartphone',
+        '18:e2:c2:88:fb:3d': 'Josh Smartphone',
+        '24:77:03:83:73:c4': 'Josh Laptop'
         }
 
 def main():
