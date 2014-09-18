@@ -180,13 +180,13 @@ class MACScanner():
     def _reset_wlan0(self):
         # attempt to configure the wireless card
         if (os.system("ifconfig wlan0 down") != 0):
-            self.log.error("Error taking wlan0 down")
+            self.log.error(cur_datetime() + "Error: Error taking wlan0 down")
             sys.exit(1)
         if (os.system("iwconfig wlan0 mode monitor") != 0):
-            self.log.error("Error setting wlan0 to monitor mode")
+            self.log.error(cur_datetime() + "Error: Error setting wlan0 to monitor mode")
             sys.exit(1)
         if (os.system("ifconfig wlan0 up") != 0):
-            self.log.error("Error bringing wlan0 up")
+            self.log.error(cur_datetime() + "Error: Error bringing wlan0 up")
             sys.exit(1)
 
     def _getRSSI(self, pkt):
@@ -257,7 +257,7 @@ class MACScanner():
         if self.msg_queue != None:
             # check if thread is still alive
             if not self.thread.isAlive():
-                self.log.error("Post to GATD thread died!!")
+                self.log.error(cur_datetime() + "Error: Post to GATD thread died!!")
                 sys.exit(1)
             # push data to thread to be posted
             self.msg_queue.put([mac_addr, dev])
@@ -326,22 +326,22 @@ class MACScanner():
             if self.channel_index >= len(self.wifi_channels):
                 self.channel_index = 0
 
-            self.log.info("Hopping to channel " + str(self.wifi_channels[self.channel_index]))
+            self.log.info(cur_datetime() + "Info: Hopping to channel " + str(self.wifi_channels[self.channel_index]))
             if (os.system("iwconfig wlan0 channel " +
                     str(self.wifi_channels[self.channel_index])) != 0):
-                self.log.error("Failed to change channel! Resetting...")
+                self.log.error(cur_datetime() + "Error: Failed to change channel! Resetting...")
                 self._reset_wlan0()
 
     def sniff(self, timeout=1):
             # run a time-limited scan on the channel
-            self.log.info("Sniffing for " + str(timeout) + " seconds")
+            self.log.info(cur_datetime() + "Info: Sniffing for " + str(timeout) + " seconds")
             sniff(iface="wlan0", prn = self.PacketHandler,
                     lfilter=(lambda x: x.haslayer(Dot11)), timeout=timeout)
 
             # check if the wireless device stopped working (defined as 10
             #   minutes without a single packet)
             if (time.time() - self.last_packet) > 10*60:
-                self.log.error("10 minutes without a new packet. Resetting...")
+                self.log.error(cur_datetime() + "Error: 10 minutes without a new packet. Resetting...")
                 self._reset_wlan0()
 
 
@@ -382,6 +382,9 @@ class GATDPoster(Thread):
                 # ignore error and carry on
                 print("Failure to POST" + str(e))
 
+
+def cur_datetime():
+    return time.strftime("%m/%d/%Y %H:%M")
 
 def get_scan_locations():
     global MACADDR_GET_ADDR
