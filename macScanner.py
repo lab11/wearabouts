@@ -178,6 +178,8 @@ class MACScanner():
         self._reset_wlan0()
 
     def _reset_wlan0(self):
+        self.last_packet = time.time()
+
         # attempt to configure the wireless card
         if (os.system("ifconfig wlan0 down") != 0):
             self.log.error(cur_datetime() + "Error: Error taking wlan0 down")
@@ -340,6 +342,7 @@ class MACScanner():
 
             # check if the wireless device stopped working (defined as 10
             #   minutes without a single packet)
+            #   _reset_wlan0 automatically resets last_packet time
             if (time.time() - self.last_packet) > 10*60:
                 self.log.error(cur_datetime() + "Error: 10 minutes without a new packet. Resetting...")
                 self._reset_wlan0()
