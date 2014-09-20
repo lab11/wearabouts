@@ -11,6 +11,9 @@ import urllib2
 import json
 import httplib
 
+import logging
+import logging.handlers
+
 if os.geteuid() != 0:
     print('Root privileges needed to run scans.')
     sys.exit(1)
@@ -82,7 +85,11 @@ KNOWN_DEVICES = {
         '8c:a9:82:a3:f9:9b': 'Rohan Laptop',
         '88:1f:a1:78:4f:66': 'Rohan Smartphone',
         '7c:d1:c3:76:df:c0': 'Nathan Laptop',
-        '40:b3:95:e1:1b:c2': 'Nathan Smartphone'
+        '40:b3:95:e1:1b:c2': 'Nathan Smartphone',
+        '18:e2:c2:88:fb:3d': 'Josh Smartphone',
+        '24:77:03:83:73:c4': 'Josh Laptop',
+        '40:0e:85:4b:cc:f9': 'Genevieve Smatphone',
+        '68:94:23:90:97:c9': 'Genevieve Laptop'
         }
 
 def main():
@@ -126,6 +133,15 @@ def main():
         print('Running test scans...')
         post_to_gatd = False
 
+    # setup logging
+    log = logging.getLogger('macScanner_log')
+    log.setLevel(logging.DEBUG)
+    log_filename = 'macScanner_log_' + str(LOCATION.split('|')[-1]) + '.out'
+    handler = logging.handlers.TimedRotatingFileHandler(log_filename,
+            when='midnight', backupCount=2)
+    log.addHandler(handler)
+    log.info("Running macScanner at " + LOCATION)
+    
     # create thread to handle posting to GATD if desired
     msg_queue = None
     poster_thread = None
@@ -133,7 +149,7 @@ def main():
         msg_queue = Queue.Queue()
         poster_thread = GATDPoster(msg_queue)
 
-    scanner = MACScanner(queue=msg_queue, thread=poster_thread)
+    scanner = MACScanner(queue=msg_queue, thread=poster_thread, log=log)
 
     while True:
         scanner.hop()
@@ -146,11 +162,12 @@ class MACScanner():
                     36, 38, 40, 44, 46, 48,
                     149, 151, 153, 157, 159, 161, 165]
     
-    def __init__(self, sample_window=60, queue=None, print_all=False, thread=None):
+    def __init__(self, log, sample_window=60, queue=None, print_all=False, thread=None):
         self.sample_window = sample_window
         self.msg_queue = queue
         self.print_all = print_all
         self.thread = thread
+        self.log = log
 
         self.channel_index = 0
         self.devices = {}
@@ -161,15 +178,17 @@ class MACScanner():
         self._reset_wlan0()
 
     def _reset_wlan0(self):
+        self.last_packet = time.time()
+
         # attempt to configure the wireless card
         if (os.system("ifconfig wlan0 down") != 0):
-            print("Error taking wlan0 down")
+            self.log.error(cur_datetime() + "Error: Error taking wlan0 down")
             sys.exit(1)
         if (os.system("iwconfig wlan0 mode monitor") != 0):
-            print("Error setting wlan0 to monitor mode")
+            self.log.error(cur_datetime() + "Error: Error setting wlan0 to monitor mode")
             sys.exit(1)
         if (os.system("ifconfig wlan0 up") != 0):
-            print("Error bringing wlan0 up")
+            self.log.error(cur_datetime() + "Error: Error bringing wlan0 up")
             sys.exit(1)
 
     def _getRSSI(self, pkt):
@@ -240,7 +259,7 @@ class MACScanner():
         if self.msg_queue != None:
             # check if thread is still alive
             if not self.thread.isAlive():
-                print("Post to GATD thread died!!")
+                self.log.error(cur_datetime() + "Error: Post to GATD thread died!!")
                 sys.exit(1)
             # push data to thread to be posted
             self.msg_queue.put([mac_addr, dev])
@@ -309,20 +328,23 @@ class MACScanner():
             if self.channel_index >= len(self.wifi_channels):
                 self.channel_index = 0
 
+            self.log.info(cur_datetime() + "Info: Hopping to channel " + str(self.wifi_channels[self.channel_index]))
             if (os.system("iwconfig wlan0 channel " +
                     str(self.wifi_channels[self.channel_index])) != 0):
-                print("Failed to change channel!")
+                self.log.error(cur_datetime() + "Error: Failed to change channel! Resetting...")
                 self._reset_wlan0()
-            #print("NEW CHANNEL: Channel " + str(wifi_channels[channel_index]))
 
     def sniff(self, timeout=1):
             # run a time-limited scan on the channel
+            self.log.info(cur_datetime() + "Info: Sniffing for " + str(timeout) + " seconds")
             sniff(iface="wlan0", prn = self.PacketHandler,
                     lfilter=(lambda x: x.haslayer(Dot11)), timeout=timeout)
 
             # check if the wireless device stopped working (defined as 10
             #   minutes without a single packet)
+            #   _reset_wlan0 automatically resets last_packet time
             if (time.time() - self.last_packet) > 10*60:
+                self.log.error(cur_datetime() + "Error: 10 minutes without a new packet. Resetting...")
                 self._reset_wlan0()
 
 
@@ -363,6 +385,9 @@ class GATDPoster(Thread):
                 # ignore error and carry on
                 print("Failure to POST" + str(e))
 
+
+def cur_datetime():
+    return time.strftime("%m/%d/%Y %H:%M")
 
 def get_scan_locations():
     global MACADDR_GET_ADDR
