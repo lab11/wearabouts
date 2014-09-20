@@ -219,6 +219,7 @@ class MigrationMonitor ( ):
                 # update user information
                 self.presence_data[uniqname]['macAddr']['rssi'] = pkt['avg_rssi']
                 self.presence_data[uniqname]['macAddr']['time'] = int(round(pkt['time']/1000))
+                self.presence_data[uniqname]['macAddr']['mac_addr'] = pkt['mac_addr']
                 self.locate()
 
             # fitbit data
