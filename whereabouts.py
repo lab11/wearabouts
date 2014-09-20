@@ -212,6 +212,8 @@ class MigrationMonitor ( ):
                 if 'avg_rssi' not in pkt or 'time' not in pkt:
                     continue
 
+                self.log.debug(cur_datetime() + ' ' + str(pkt))
+
                 # create dict for user
                 if 'macAddr' not in self.presence_data[uniqname]:
                     self.presence_data[uniqname]['macAddr'] = {}
