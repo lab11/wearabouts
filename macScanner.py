@@ -10,6 +10,8 @@ import Queue
 import urllib2
 import json
 import httplib
+import re
+import subprocess
 
 import logging
 import logging.handlers
@@ -95,6 +97,11 @@ KNOWN_DEVICES = {
 def main():
     global USAGE, LOCATION 
     
+    # check that usbreset exists
+    if not os.path.isfile("usbreset"):
+        print("Error: usbreset does not exist. Run:\n\tgcc usbreset.c -o usbreset\nand start macScanner in whereabouts directory")
+        sys.exit(1)
+
     # get a list of previously monitored locations
     try:
         scan_locations = get_scan_locations()
@@ -141,7 +148,7 @@ def main():
             when='midnight', backupCount=2)
     log.addHandler(handler)
     log.info("Running macScanner at " + LOCATION)
-    
+
     # create thread to handle posting to GATD if desired
     msg_queue = None
     poster_thread = None
@@ -180,6 +187,16 @@ class MACScanner():
     def _reset_wlan0(self):
         self.last_packet = time.time()
 
+        # attempt to reset USB
+        devices = self._get_USB_devices()
+        if (len(devices) != 1):
+            self.log.error(cur_datetime() + "Error: couldn't find USB device")
+            self.log.error("\t" + str(devices))
+            sys.exit(1)
+        if (os.system("./usbreset " + str(devices[0]['device'])) != 0):
+            self.log.error(cur_datetime() + "Error: Error resetting USB device")
+            sys.exit(1)
+
         # attempt to configure the wireless card
         if (os.system("ifconfig wlan0 down") != 0):
             self.log.error(cur_datetime() + "Error: Error taking wlan0 down")
@@ -190,6 +207,21 @@ class MACScanner():
         if (os.system("ifconfig wlan0 up") != 0):
             self.log.error(cur_datetime() + "Error: Error bringing wlan0 up")
             sys.exit(1)
+
+    def _get_USB_devices(self):
+        # http://stackoverflow.com/questions/8110310/simple-way-to-query-connected-usb-devices-info-in-python
+        device_re = re.compile("Bus\s+(?P<bus>\d+)\s+Device\s+(?P<device>\d+).+ID\s(?P<id>\w+:\w+)\s(?P<tag>.+)$", re.I)
+        # edited this line to only look for Ralink wifi dongles
+        df = subprocess.check_output("lsusb | grep Ralink", shell=True)
+        devices = []
+        for i in df.split('\n'):
+            if i:
+                info = device_re.match(i)
+                if info:
+                    dinfo = info.groupdict()
+                    dinfo['device'] = '/dev/bus/usb/%s/%s' % (dinfo.pop('bus'), dinfo.pop('device'))
+                    devices.append(dinfo)
+        return devices
 
     def _getRSSI(self, pkt):
         return (ord(pkt.notdecoded[-4:-3])-256)
@@ -262,6 +294,7 @@ class MACScanner():
                 self.log.error(cur_datetime() + "Error: Post to GATD thread died!!")
                 sys.exit(1)
             # push data to thread to be posted
+            self.log.debug(cur_datetime() + "Debug: Posting " + str(mac_addr) + ' - ' + str(dev))
             self.msg_queue.put([mac_addr, dev])
 
     def _print_device(self, index, mac_addr):
@@ -387,7 +420,7 @@ class GATDPoster(Thread):
 
 
 def cur_datetime():
-    return time.strftime("%m/%d/%Y %H:%M")
+    return time.strftime("%m/%d/%Y %H:%M ")
 
 def get_scan_locations():
     global MACADDR_GET_ADDR

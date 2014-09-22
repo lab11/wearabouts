@@ -2,3 +2,5 @@
 *.swp
 venv/
 whereabouts_log*
+macScanner_log*
+usbreset
