@@ -188,6 +188,7 @@ class MACScanner():
         self.last_packet = time.time()
 
         # attempt to reset USB
+        print("resetting usb")
         devices = self._get_USB_devices()
         if (len(devices) != 1):
             self.log.error(cur_datetime() + "Error: couldn't find USB device")
@@ -196,8 +197,13 @@ class MACScanner():
         if (os.system("./usbreset " + str(devices[0]['device'])) != 0):
             self.log.error(cur_datetime() + "Error: Error resetting USB device")
             sys.exit(1)
+        print("complete (" + str(devices[0]['device']) + ')')
+
+        # sleep for a while to let the USB device come back up
+        time.sleep(10)
 
         # attempt to configure the wireless card
+        print("configuring interface")
         if (os.system("ifconfig wlan0 down") != 0):
             self.log.error(cur_datetime() + "Error: Error taking wlan0 down")
             sys.exit(1)
@@ -207,6 +213,7 @@ class MACScanner():
         if (os.system("ifconfig wlan0 up") != 0):
             self.log.error(cur_datetime() + "Error: Error bringing wlan0 up")
             sys.exit(1)
+        print("complete")
 
     def _get_USB_devices(self):
         # http://stackoverflow.com/questions/8110310/simple-way-to-query-connected-usb-devices-info-in-python
