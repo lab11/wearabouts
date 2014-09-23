@@ -154,7 +154,7 @@ def main():
     poster_thread = None
     if post_to_gatd:
         msg_queue = Queue.Queue()
-        poster_thread = GATDPoster(msg_queue)
+        poster_thread = GATDPoster(msg_queue, log=log)
 
     scanner = MACScanner(queue=msg_queue, thread=poster_thread, log=log)
 
@@ -301,7 +301,6 @@ class MACScanner():
                 self.log.error(cur_datetime() + "Error: Post to GATD thread died!!")
                 sys.exit(1)
             # push data to thread to be posted
-            self.log.debug(cur_datetime() + "Debug: Posting " + str(mac_addr) + ' - ' + str(dev))
             self.msg_queue.put([mac_addr, dev])
 
     def _print_device(self, index, mac_addr):
@@ -390,13 +389,14 @@ class MACScanner():
 
 class GATDPoster(Thread):
     
-    def __init__(self, queue):
+    def __init__(self, queue, log=None):
         # init thread
         super(GATDPoster, self).__init__()
         self.daemon = True
 
         # init data
         self.msg_queue = queue
+        self.log = log
 
         # start thread
         self.start()
@@ -421,9 +421,13 @@ class GATDPoster(Thread):
                 req = urllib2.Request(MACADDR_POST_ADDR)
                 req.add_header('Content-Type', 'application/json')
                 response = urllib2.urlopen(req, json.dumps(data))
+                self.log.debug(cur_datetime() + "Debug: Posting " + 
+                        str(mac_addr) + ' RSSI: ' + str(dev['rssi']['average']) +
+                        "\tTimestamp received: " + str(dev['timestamp']))
             except (httplib.BadStatusLine, urllib2.URLError), e:
                 # ignore error and carry on
                 print("Failure to POST" + str(e))
+                log.error(cur_datetime() + "ERROR: Failure to POST" + str(e))
 
 
 def cur_datetime():

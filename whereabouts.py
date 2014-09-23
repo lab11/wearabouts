@@ -212,11 +212,17 @@ class MigrationMonitor ( ):
                 if 'avg_rssi' not in pkt or 'time' not in pkt:
                     continue
 
-                self.log.debug(cur_datetime() + ' ' + str(pkt))
+                self.log.debug(cur_datetime() + ' MAC: ' + str(pkt))
 
                 # create dict for user
                 if 'macAddr' not in self.presence_data[uniqname]:
                     self.presence_data[uniqname]['macAddr'] = {}
+
+                # check that this timestamp is as new as the most recent packet
+                timestamp = int(round(pkt['time']/1000))
+                if not timestamp >= self.presence_data[uniqname]['macAddr']['time']:
+                    self.log.error(cur_datetime() + " : out of sequence packet.\n"+str(pkt))
+                    continue
 
                 # update user information
                 self.presence_data[uniqname]['macAddr']['rssi'] = pkt['avg_rssi']
