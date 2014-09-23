@@ -220,7 +220,8 @@ class MigrationMonitor ( ):
 
                 # check that this timestamp is as new as the most recent packet
                 timestamp = int(round(pkt['time']/1000))
-                if not timestamp >= self.presence_data[uniqname]['macAddr']['time']:
+                if 'time' in self.presence_data[uniqname]['macAddr'] and
+                        not timestamp >= self.presence_data[uniqname]['macAddr']['time']:
                     self.log.error(cur_datetime() + " : out of sequence packet.\n"+str(pkt))
                     continue
 
