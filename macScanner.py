@@ -90,7 +90,7 @@ KNOWN_DEVICES = {
         '40:b3:95:e1:1b:c2': 'Nathan Smartphone',
         '18:e2:c2:88:fb:3d': 'Josh Smartphone',
         '24:77:03:83:73:c4': 'Josh Laptop',
-        '40:0e:85:4b:cc:f9': 'Genevieve Smatphone',
+        '40:0e:85:4b:cc:f9': 'Genevieve Smartphone',
         '68:94:23:90:97:c9': 'Genevieve Laptop'
         }
 
@@ -161,6 +161,9 @@ def main():
     while True:
         scanner.hop()
         scanner.sniff()
+
+        # wait until all packets have been handled before continuing
+        msg_queue.join()
 
 
 class MACScanner():
@@ -277,13 +280,13 @@ class MACScanner():
             self.devices[mac_addr] = {}
             self.devices[mac_addr]['count'] = 0
             self.devices[mac_addr]['rssi'] = {'average': -200, 'newest': -200, 'samples': {}}
+            self.devices[mac_addr]['timestamp'] = 0
         
         # save various metadata about the connection
+        current_time = time.time()
         dev = self.devices[mac_addr]
         dev['count'] += 1
         dev['channel'] = self.wifi_channels[self.channel_index]
-        current_time = time.time()
-        dev['timestamp'] = current_time
         dev['rssi']['newest'] = self._getRSSI(pkt)
         
         # save RSSI data. Only keep values from within the last minute
@@ -293,6 +296,11 @@ class MACScanner():
         dev['rssi']['samples'][current_time] = self._getRSSI(pkt)
         dev['rssi']['average'] = self._median(dev['rssi']['samples'].values())
 
+        # check if this packet should actually be sent to GATD, rate limit to one per second
+        if int(dev['timestamp']) >= int(current_time):
+            return
+        dev['timestamp'] = current_time
+
         # push to message queue if it exists
         TOTAL_COUNT += 1
         if self.msg_queue != None:
@@ -300,6 +308,7 @@ class MACScanner():
             if not self.thread.isAlive():
                 self.log.error(cur_datetime() + "Error: Post to GATD thread died!!")
                 sys.exit(1)
+
             # push data to thread to be posted
             self.msg_queue.put([mac_addr, dev])
 
@@ -334,32 +343,33 @@ class MACScanner():
             self._update_device(pkt.addr1, pkt)
             self._update_device(pkt.addr2, pkt)
 
-            # clear terminal screen and print dict
-            if (time.time() - self.last_update) > 1:
-                self.last_update = time.time()
+    def updateScreen(self):
+        # clear terminal screen and print dict
+        if (time.time() - self.last_update) > 1:
+            self.last_update = time.time()
 
-                os.system('cls' if os.name == 'nt' else 'clear')
-                print("Time: " + time.strftime("%I:%M:%S"))
+            os.system('cls' if os.name == 'nt' else 'clear')
+            print("Time: " + time.strftime("%I:%M:%S"))
 
-                index = 0
-                if self.print_all:
-                    for mac_addr in copy_list:
-                        index += 1
+            index = 0
+            if self.print_all:
+                for mac_addr in copy_list:
+                    index += 1
+                    self._print_device(index, mac_addr)
+
+            else:
+                sorted_macs = sorted(self.devices,
+                        key=lambda mac_addr: self.devices[mac_addr]['rssi']['average'],
+                        reverse=True)
+                other_lines = 52 - len([x for x in sorted_macs if x in KNOWN_DEVICES])
+
+                for mac_addr in sorted_macs:
+                    index += 1
+                    if other_lines > 0 or mac_addr in KNOWN_DEVICES:
+                        # print all labeled devices and the top remaining devices that fit on screen
+                        if mac_addr not in KNOWN_DEVICES:
+                            other_lines -= 1
                         self._print_device(index, mac_addr)
-
-                else:
-                    sorted_macs = sorted(self.devices,
-                            key=lambda mac_addr: self.devices[mac_addr]['rssi']['average'],
-                            reverse=True)
-                    other_lines = 52 - len([x for x in sorted_macs if x in KNOWN_DEVICES])
-
-                    for mac_addr in sorted_macs:
-                        index += 1
-                        if other_lines > 0 or mac_addr in KNOWN_DEVICES:
-                            # print all labeled devices and the top remaining devices that fit on screen
-                            if mac_addr not in KNOWN_DEVICES:
-                                other_lines -= 1
-                            self._print_device(index, mac_addr)
 
     def hop(self):
             # hop to the next channel
@@ -379,12 +389,17 @@ class MACScanner():
             sniff(iface="wlan0", prn = self.PacketHandler,
                     lfilter=(lambda x: x.haslayer(Dot11)), timeout=timeout)
 
+            # update screen
+            self.updateScreen()
+
             # check if the wireless device stopped working (defined as 10
             #   minutes without a single packet)
             #   _reset_wlan0 automatically resets last_packet time
             if (time.time() - self.last_packet) > 10*60:
                 self.log.error(cur_datetime() + "Error: 10 minutes without a new packet. Resetting...")
                 self._reset_wlan0()
+
+            #self.log.debug(cur_datetime() + "Timing: Finished sniff on channel " + str(self.wifi_channels[self.channel_index]))
 
 
 class GATDPoster(Thread):
@@ -421,17 +436,21 @@ class GATDPoster(Thread):
                 req = urllib2.Request(MACADDR_POST_ADDR)
                 req.add_header('Content-Type', 'application/json')
                 response = urllib2.urlopen(req, json.dumps(data))
-                self.log.debug(cur_datetime() + "Debug: Posting " + 
-                        str(mac_addr) + ' RSSI: ' + str(dev['rssi']['average']) +
-                        "\tTimestamp received: " + str(dev['timestamp']))
+                #self.log.debug(cur_datetime() + "Debug: Posting " + 
+                #        str(mac_addr) +
+                #        '\tChan: ' + str(dev['channel']) +
+                #        '\tRSSI: ' + str(dev['rssi']['average']) +
+                #        "\tTimestamp received: " + str(dev['timestamp']))
             except (httplib.BadStatusLine, urllib2.URLError), e:
                 # ignore error and carry on
                 print("Failure to POST" + str(e))
                 log.error(cur_datetime() + "ERROR: Failure to POST" + str(e))
+            finally:
+                self.msg_queue.task_done()
 
 
 def cur_datetime():
-    return time.strftime("%m/%d/%Y %H:%M ")
+    return time.strftime("%m/%d/%Y %H:%M:%S ")
 
 def get_scan_locations():
     global MACADDR_GET_ADDR
