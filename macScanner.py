@@ -444,7 +444,7 @@ class GATDPoster(Thread):
             except (httplib.BadStatusLine, urllib2.URLError), e:
                 # ignore error and carry on
                 print("Failure to POST" + str(e))
-                log.error(cur_datetime() + "ERROR: Failure to POST" + str(e))
+                self.log.error(cur_datetime() + "ERROR: Failure to POST" + str(e))
             finally:
                 self.msg_queue.task_done()
 
