@@ -109,32 +109,32 @@ def main():
     except urllib2.URLError:
         print("Connection to inductor unavailable. Running in test mode")
         LOCATION = 'test'
+    else:
+        # get location
+        if len(sys.argv) != 2:
+            print(USAGE)
+            index = 0
+            for location in scan_locations:
+                print("    [" + str(index) + "]: " + location)
+                index += 1
+            print("")
+            user_input = raw_input("Select a location or enter a new one: ")
 
-    # get location
-    if len(sys.argv) != 2:
-        print(USAGE)
-        index = 0
-        for location in scan_locations:
-            print("    [" + str(index) + "]: " + location)
-            index += 1
-        print("")
-        user_input = raw_input("Select a location or enter a new one: ")
-
-        if user_input == '':
-            print("Invalid selection")
-            exit()
-
-        if user_input.isdigit():
-            user_input = int(user_input)
-            if 0 <= user_input < index:
-                LOCATION = scan_locations[user_input]
-            else:
+            if user_input == '':
                 print("Invalid selection")
                 exit()
+
+            if user_input.isdigit():
+                user_input = int(user_input)
+                if 0 <= user_input < index:
+                    LOCATION = scan_locations[user_input]
+                else:
+                    print("Invalid selection")
+                    exit()
+            else:
+                LOCATION = user_input
         else:
-            LOCATION = user_input
-    else:
-        LOCATION = sys.argv[1]
+            LOCATION = sys.argv[1]
 
     post_to_gatd = True
     if LOCATION == 'test':
@@ -144,9 +144,9 @@ def main():
     # setup logging
     log = logging.getLogger('macScanner_log')
     log.setLevel(logging.DEBUG)
-    log_filename = 'macScanner_log_' + str(LOCATION.split('|')[-1]) + '.out'
+    log_filename = '../logs/macScanner_log_' + str(LOCATION.split('|')[-1]) + '.out'
     handler = logging.handlers.TimedRotatingFileHandler(log_filename,
-            when='midnight', backupCount=2)
+            when='midnight', backupCount=7)
     log.addHandler(handler)
     log.info("Running macScanner at " + LOCATION)
 
