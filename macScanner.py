@@ -91,7 +91,8 @@ KNOWN_DEVICES = {
         '18:e2:c2:88:fb:3d': 'Josh Smartphone',
         '24:77:03:83:73:c4': 'Josh Laptop',
         '40:0e:85:4b:cc:f9': 'Genevieve Smartphone',
-        '68:94:23:90:97:c9': 'Genevieve Laptop'
+        '68:94:23:90:97:c9': 'Genevieve Laptop',
+        '54:26:96:2a:10:38': 'Ye-Sheng Smartphone'
         }
 
 def main():
