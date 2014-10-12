@@ -1,4 +1,4 @@
-fitbitfinder
+Fitbit Finder
 ============
 
 Uses the fitbit base station dongle to scan for nearby fitbits. Can run scans
