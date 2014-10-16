@@ -20,7 +20,7 @@ modifications under the license included in the directory.
     `sudo pip install pyserial socketIO-client`
 
 2. Program nrf51822 USB dongle with nRF-Sniffer firmware (follow guide available
-[here](https://www.nordicsemi.com/eng/Products/Bluetooth-Smart-Bluetooth-low-energy/nRF51822-Development-Kit))
+[here](http://www.nordicsemi.com/eng/Products/Bluetooth-Smart-Bluetooth-low-energy/nRF-Sniffer))
 
 3. Run bleScanner  
     `./bleScanner.py`

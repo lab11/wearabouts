@@ -50,8 +50,29 @@ BLEADDR_EXPLORE_ADDR = 'http://inductor.eecs.umich.edu:8085/explore/profile/' + 
 BLEADDR_POST_ADDR = 'http://inductor.eecs.umich.edu:8081/' + BLEADDR_PROFILE_ID
 
 KNOWN_DEVICES = {
-        'f9:97:1e:8b:e7:27': 'Branden Fitbit One',
-        'c4:26:da:a4:72:c3': 'Ye-Sheng Fitbit One'
+        'ec:84:04:f4:4a:07': 'Neal Jackson',
+        'e2:a7:7f:78:34:24': 'Alex Halderman',
+        'f9:97:1e:8b:e7:27': 'Branden Ghena',
+        'ee:b7:8c:0d:8d:4d': 'Brad Campbell',
+        'e8:74:72:8f:e4:57': 'William Huang',
+        'ca:a3:bb:ea:94:5b': 'Meghan Clark',
+        'd1:c6:df:67:1c:60': 'Rohit Ramesh',
+        'f9:95:7d:e0:33:60': 'Pat Pannuto',
+        'f0:76:0f:09:b8:63': 'Noah Klugman',
+        'ec:6d:04:74:fa:69': 'Yihua Guo',
+        'f4:bb:3c:af:99:6c': 'Ben Kempke',
+        'db:eb:52:c7:90:74': 'Sam DeBruin',
+        'f7:fd:9a:80:91:79': 'Genevieve Flaspohler',
+        'cb:14:57:58:b4:89': 'Charlie Welch',
+        'de:da:9c:f1:75:94': 'David Adrian',
+        'cd:49:fa:6a:98:b1': 'Spare Blue Force',
+        'ee:47:fa:fe:ac:c2': 'Eva Robert',
+        'c4:26:da:a4:72:c3': 'Ye-Sheng Kuo',
+        'f1:7c:98:6e:b9:d1': 'Jessica De Jong',
+        'e0:5e:5a:28:85:e3': 'Thomas Zachariah',
+        'ca:28:2b:08:f3:f7': 'Josh Adkins',
+        'ef:b1:85:b1:37:d4': 'Taped Nordic Tag',
+        'e8:2c:76:b7:f7:8f': "Noah's Nordic Tag"
         }
 
 def main():
@@ -170,8 +191,11 @@ class BLEScanner():
                 UNIQUE_COUNT += 1
                 self.devices[ble_addr] = {}
                 self.devices[ble_addr]['count'] = 0
-                self.devices[ble_addr]['rssi'] = {'average': -200, 'newest': -200, 'samples': {}}
+                self.devices[ble_addr]['rssi'] = {'average': -200,
+                        'newest': -200, 'samples': {}}
                 self.devices[ble_addr]['timestamp'] = 0
+                self.log.info(curr_datetime() + "INFO - BLE Device " +
+                        str(ble_addr) + " first seen")
 
             # save various metadata about the connection
             current_time = time.time()
@@ -298,7 +322,8 @@ class BLEScanner():
                     packet.blePacket.advAddress[4],
                     packet.blePacket.advAddress[5])
             rssi = packet.RSSI
-            name = packet.blePacket.name
+            # remove silly quotation marks
+            name = packet.blePacket.name[1:-1]
 
             return [ble_addr, rssi, name]
         else:
@@ -341,7 +366,7 @@ class GATDPoster(Thread):
                 if self.log:
                     self.log.error(curr_datetime() + "ERROR - GATDPoster: " + str(e))
                 else:
-                    print("ERROR - GATDPoster: " + str(e))
+                    print(curr_datetime() + "ERROR - GATDPoster: " + str(e))
             finally:
                 self.msg_queue.task_done()
 
