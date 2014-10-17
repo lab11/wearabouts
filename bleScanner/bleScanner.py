@@ -16,7 +16,7 @@ from bleAPI import Exceptions
 
 #XXX: mac address for terraswarm demos
 from uuid import getnode as get_mac
-MAC_ADDRESS = get_mac()
+MAC_ADDRESS = "{:012X}".format(get_mac())
 
 try:
     from serial import SerialException
