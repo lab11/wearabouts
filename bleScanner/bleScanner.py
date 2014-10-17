@@ -15,8 +15,9 @@ from bleAPI import Packet
 from bleAPI import Exceptions
 
 #XXX: mac address for terraswarm demos
-from uuid import getnode as get_mac
-MAC_ADDRESS = "{:012X}".format(get_mac())
+import subprocess
+command = "ifconfig eth0 | grep HWaddr | cut -dH -f2 | cut -d\  -f2"
+MAC_ADDRESS = subprocess.check_output(command, shell=True)[0:-1].upper()
 
 try:
     from serial import SerialException
