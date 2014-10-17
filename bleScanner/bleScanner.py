@@ -57,7 +57,7 @@ KNOWN_DEVICES = {
         'e8:74:72:8f:e4:57': 'William Huang',
         'ca:a3:bb:ea:94:5b': 'Meghan Clark',
         'd1:c6:df:67:1c:60': 'Rohit Ramesh',
-        'f9:95:7d:e0:33:60': 'Pat Pannuto',
+        'ca:2d:39:50:f0:b1': 'Pat Pannuto',
         'f0:76:0f:09:b8:63': 'Noah Klugman',
         'ec:6d:04:74:fa:69': 'Yihua Guo',
         'f4:bb:3c:af:99:6c': 'Ben Kempke',
