@@ -14,6 +14,10 @@ from threading import Thread
 from bleAPI import Packet
 from bleAPI import Exceptions
 
+#XXX: mac address for terraswarm demos
+from uuid import getnode as get_mac
+MAC_ADDRESS = get_mac()
+
 try:
     from serial import SerialException
 except ImportError:
@@ -79,37 +83,39 @@ def main():
     global USAGE, LOCATION
 
     # get a list of previously scanned locations
-    try:
-        scan_locations = get_scan_locations()
-    except urllib2.URLError:
-        print("Connection to inductor unavailable. Running in test mode")
-        LOCATION = 'test'
-    else:
-        # get location
-        if len(sys.argv) != 2:
-            print(USAGE)
-            index = 0
-            for location in scan_locations:
-                print("\t[" + str(index) + "]: " + location)
-                index += 1
-            print("")
-            user_input = raw_input("Select a location or enter a new one: ")
+    #try:
+    #    scan_locations = get_scan_locations()
+    #except urllib2.URLError:
+    #    print("Connection to inductor unavailable. Running in test mode")
+    #    LOCATION = 'test'
+    #else:
+    #    # get location
+    #    if len(sys.argv) != 2:
+    #        print(USAGE)
+    #        index = 0
+    #        for location in scan_locations:
+    #            print("\t[" + str(index) + "]: " + location)
+    #            index += 1
+    #        print("")
+    #        user_input = raw_input("Select a location or enter a new one: ")
 
-            if user_input == '':
-                print("Invalid selection")
-                sys.exit(1)
+    #         if user_input == '':
+    #             print("Invalid selection")
+    #             sys.exit(1)
 
-            if user_input.isdigit():
-                user_input = int(user_input)
-                if 0 <= user_input < index:
-                    LOCATION = scan_locations[user_input]
-                else:
-                    print("Invalid selection")
-                    sys.exit(1)
-            else:
-                LOCATION = user_input
-        else:
-            LOCATION = sys.argv[1]
+    #         if user_input.isdigit():
+    #             user_input = int(user_input)
+    #             if 0 <= user_input < index:
+    #                 LOCATION = scan_locations[user_input]
+    #             else:
+    #                 print("Invalid selection")
+    #                 sys.exit(1)
+    #         else:
+    #             LOCATION = user_input
+    #     else:
+    #         LOCATION = sys.argv[1]
+    #XXX: Location hard-coded to 'terraswarm-demo' for demos
+    LOCATION = 'terraswarm-demo'
     
     # setup logging
     log = logging.getLogger('bleScanner_log')
@@ -343,17 +349,19 @@ class GATDPoster(Thread):
         self.start()
 
     def run(self):
-        global LOCATION, BLEADDR_POST_ADDR
+        global LOCATION, BLEADDR_POST_ADDR, MAC_ADDRESS
 
         while True:
             # look for a packet
             [ble_addr, dev] = self.msg_queue.get()
+            #XXX: added mac address for terraswarm demos
             data = {
                     'location_str': LOCATION,
                     'ble_addr': ble_addr,
                     'rssi': dev['rssi']['newest'],
                     'avg_rssi': dev['rssi']['average'],
-                    'name': dev['name']
+                    'name': dev['name'],
+                    'bbb_mac_addr': MAC_ADDRESS
                     }
 
             # post to GATD
