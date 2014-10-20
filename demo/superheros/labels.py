@@ -26,8 +26,9 @@ from sh import pdf2svg
 
 
 # *** Settings ***
-LABEL_PDF = 'sticker_logo_4.pdf'
+LABEL_PDF = 'sticker_logo_5.pdf'
 RANDOMIZE = False
+TEST_BOTTOM = False
 
 QR_CODE_STR = '{}|coilcube|A|http://lab11.github.io/monjolo'
 QR_COLOR = '#2A388F'
@@ -39,12 +40,17 @@ x = POSITION_START_X
 y = POSITION_START_Y
 
 label_specs = {}
-label_specs['offset_x'] = 25
-label_specs['gap_x']    = 9
+label_specs['offset_x'] = 47.5
+#25 45 47 46 46.1 47
+label_specs['gap_x']    = 5.5
+#9 6 5
 label_specs['width_x']  = 53
-label_specs['offset_y'] = 36
-label_specs['gap_y']    = 0
-label_specs['height_y'] = 61
+label_specs['offset_y'] = 45.2
+#36 38 45
+label_specs['gap_y']    = 5.6
+#0 6 5 5.5
+label_specs['height_y'] = 53.5
+#61
 label_specs['y_count']  = 12
 label_specs['x_count']  = 9
 
@@ -100,13 +106,17 @@ def get_coordinates ():
     xpx = label_specs['offset_x'] + (x*(label_specs['gap_x'] + label_specs['width_x']))
     ypx = label_specs['offset_y'] + (y*(label_specs['gap_y'] + label_specs['height_y']))
 
-    x += 1
+    do_add = True
+    if TEST_BOTTOM:
+        if not y < 3:
+            do_add = False
 
+    x += 1
     if x > label_specs['x_count']-1:
         x = 0
         y += 1
 
-    return (round(xpx), round(ypx))
+    return (round(xpx), round(ypx), do_add)
 
 def position_label(label):
     x_mod = 0
@@ -201,7 +211,8 @@ def create_label_page(ids, page_num):
         pos = get_coordinates()
         lblr.moveto(pos[0], pos[1], 1) # position correctly (hand tweaked)
 
-        labels.append(lblr)
+        if pos[2]:
+            labels.append(lblr)
 
     label_sheet.append(labels)
     label_sheet.save('output/all_labels_{}.svg'.format(page_num))
