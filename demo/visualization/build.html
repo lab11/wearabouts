@@ -27,6 +27,7 @@ rect {
 var width = 1200;
 var height = 800;
 var uuid = 0;
+var init_complete = false;
 
 var foci = [
     {x: 200, y: 125},
@@ -434,6 +435,7 @@ for(i=0; i<75; i++) {
 
 function add() {
     addNode(superheros[(uuid-6)%superheros.length], -~~(Math.random()*70+30), ~~(Math.random()*center_nodes.length));
+    init_complete = true;
 }
 
 function kill() {
@@ -489,35 +491,25 @@ function tick(e) {
     // create artificial gravity towards foci
     var k = 0.1*e.alpha;
     force.nodes().forEach(function(d, i) {
-            d.y += (foci[d.foci_id].y - d.y)*k;
-            d.x += (foci[d.foci_id].x - d.x)*k;
-            });
+            if (!d.fixed) {
+                d.y += (foci[d.foci_id].y - d.y)*k;
+                d.x += (foci[d.foci_id].x - d.x)*k;
+            }});
 
     // run collision detection
-    /*
-    svg.selectAll("circle")
-        .each(collide(0.5))
-        .attr("cx", 
-        .attr("
-        */
+    if (init_complete) {
+        var q = d3.geom.quadtree(force.nodes());
+        for (var i=0; i<force.nodes().length; i++) {
+            q.visit(collide(force.nodes()[i]));
+        }
+    }
 
-    /*
-    node.attr("transform", function(d) {
-        // keep x in bounds
-        x_val = d.x
-        if (x_val > width) { x_val = width; }
-        if (x_val < 0) { x_val = 0; }
-
-        // keep y in bounds
-        y_val = d.y
-        if (y_val > height) { y_val = height; }
-        if (y_val < 0) { y_val = 0; }
-            
-        return "translate(" + x_val + "," + y_val + ")";});
-        */
-
-    node.attr("x", function(d) { return d.x - d.text.getBBox().width/2; })
-        .attr("y", function(d) { return d.y - d.text.getBBox().height/2; })
+    node.attr("x", function(d) {
+            if (!d.fixed) { return d.x - d.text.getBBox().width/2; }
+            else { return d.x - 1; }})
+        .attr("y", function(d) {
+            if (!d.fixed) { return d.y - d.text.getBBox().height/2; }
+            else { return d.y - 1; }})
         .attr("width", function(d) {
             if (!d.fixed) { return (d.text.getBBox().width+4); }
             else { return 2; }})
@@ -526,6 +518,43 @@ function tick(e) {
             else { return 2; }});
     text.attr("x", function(d) { return d.x + 2; })
         .attr("y", function(d) { return d.y + (d.text.getBBox().height/4) + 2; });
+}
+
+function collide(node) {
+
+    if (node.fixed) {
+        return function(quad, x1, y1, x2, y2) { return false; };
+    }
+
+    var h = node.text.getBBox().height+4+10,
+        w = node.text.getBBox().width+4+10,
+        nx1 = node.text.x - w/2,
+        nx2 = node.text.x + w/2,
+        ny1 = node.text.y - h/2,
+        ny2 = node.text.y + h/2;
+
+    return function(quad, x1, y1, x2, y2) {
+        if (quad.point && quad.point.fixed) {
+            return false;
+        }
+        if (quad.point && (quad.point !== node)) {
+            var x = node.x - quad.point.x,
+                y = node.y - quad.point.y,
+                l = Math.sqrt(x * x + y * y),
+                r = (node.text.getBBox().width+4 + quad.point.text.getBBox().width+4)/2;
+            if (l < r) {
+                l = (l - r) / l * .5;
+                node.x -= x *= l;
+                node.y -= y *= l;
+                quad.point.x += x;
+                quad.point.y += y;
+            }
+        }
+        return x1 > nx2
+            || x2 < nx1
+            || y1 > ny2
+            || y2 < ny1;
+        };
 }
 
 function restart() {
