@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+
+rect {
+    fill: #F3F3F3;
+}
+
+.link {
+    stroke: #999;
+}
+
+.node_circle {
+    stroke-width: 1.5px;
+}
+
+.node text {
+    pointer-events: none;
+    font: 10px sans-serif;
+}
+
+</style>
+<body>
+<script src="http://d3js.org/d3.v3.min.js"></script>
+<script>
+
+var width = 1200;
+var height = 800;
+var uuid = 0;
+
+var foci = [
+    {x: 200, y: 125},
+    {x: 200, y: 375},
+    {x: 500, y: 100},
+    {x: 500, y: 250},
+    {x: 500, y: 400},
+    {x: 800, y: 300}];
+
+var select_color = d3.scale.category10();
+
+var center_nodes = [];
+init_nodes();
+
+var force = d3.layout.force()
+    .size([width, height])
+    .nodes(center_nodes.slice(0)) // need to 
+    .linkStrength(0.9)
+    .linkDistance(function(d) { return 1.2*d.rssi; })
+    .charge(-250)
+    .chargeDistance(100)
+    .gravity(0)
+    .friction(0.8)
+    .on("tick", tick);
+
+var svg = d3.select("body").append("svg")
+    .attr("width", width)
+    .attr("height", height);
+
+svg.style("opacity", 1e-6)
+    .transition()
+    .duration(1000)
+    .style("opacity", 1);
+
+svg.append("rect")
+    .attr("width", width)
+    .attr("height", height);
+
+restart();
+
+// TESTING ONLY
+var superheros = [
+    "Abomination",
+    "Abraxas",
+    "Agent Zero",
+    "Air-Walker",
+    "Alfred Pennyworth",
+    "Amazo",
+    "Ammo",
+    "Angel",
+    "Animal Man",
+    "Annihilus",
+    "Ant-Man",
+    "Anti-Monitor",
+    "Anti-Spawn",
+    "Anti-Venom",
+    "Apocalypse",
+    "Aquababy",
+    "Aqualad",
+    "Aquaman",
+    "Arachne",
+    "Archangel",
+    "Ares",
+    "Arsenal",
+    "Astro Boy",
+    "Atlas",
+    "Atom",
+    "Atom Girl",
+    "Aurora",
+    "Azazel",
+    "Azrael",
+    "Aztar",
+    "Bane",
+    "Banshee",
+    "Batgirl",
+    "Batman",
+    "Battlestar",
+    "Beast",
+    "Beast Boy",
+    "Beetle",
+    "Beyonder",
+    "Binary",
+    "Birdman",
+    "Bishop",
+    "Bizarro",
+    "Black Adam",
+    "Black Canary",
+    "Black Cat",
+    "Black Goliath",
+    "Black Widow",
+    "Blackout",
+    "Blackwing",
+    "Blackwulf",
+    "Blade",
+    "Blink",
+    "Blizzard",
+    "Blob",
+    "Bloodhawk",
+    "Bloodwraith",
+    "Blue Beetle",
+    "Bolt",
+    "Boomer",
+    "Booster Gold",
+    "Brainiac",
+    "Bullseye",
+    "Bumblebee",
+    "Bumbleboy",
+    "Cable",
+    "Callisto",
+    "Captain America",
+    "Captain Atom",
+    "Captain Britain",
+    "Captain Canuck",
+    "Captain Planet",
+    "Carnage",
+    "Catwoman",
+    "Cerebra",
+    "Chameleon",
+    "Changeling",
+    "Cheetah",
+    "Chromos",
+    "Chuck Norris",
+    "Cloak",
+    "Colossal Boy",
+    "Colossus",
+    "Corsair",
+    "Crimson Crusader",
+    "Crimson Dynamo",
+    "Cyborg",
+    "Cyclops",
+    "Cypher",
+    "Dagger",
+    "Daredevil",
+    "Darkhawk",
+    "Darkman",
+    "Darkside",
+    "Darkstar",
+    "Dash",
+    "Dazzler",
+    "Deadman",
+    "Deadpool",
+    "Deadshot",
+    "Deathlok",
+    "Deathstroke",
+    "Doctor Doom",
+    "Doctor Fate",
+    "Doctor Octopus",
+    "Doctor Strange",
+    "Domino",
+    "Doomsday",
+    "Doppelganger",
+    "Dr. Manhattan",
+    "Ego",
+    "Elastigirl",
+    "Electro",
+    "Elektra",
+    "Elongated Man",
+    "Exodus",
+    "Falcon",
+    "Firebird",
+    "Firelord",
+    "Firestar",
+    "Fixer",
+    "Flash Gordon",
+    "Flash",
+    "Frenzy",
+    "Frigga",
+    "Galactus",
+    "Gambit",
+    "Garbage Man",
+    "General Zod",
+    "Genesis",
+    "Ghost Rider",
+    "Giant-Man",
+    "Giganta",
+    "Goblin Queen",
+    "Gog",
+    "Goliath",
+    "Granny Goodness",
+    "Green Arrow",
+    "Green Goblin",
+    "Groot",
+    "Guardian",
+    "Hancock",
+    "Harley Quinn",
+    "Havok",
+    "Hawkeye",
+    "Hawkgirl",
+    "Hawkman",
+    "Hawkwoman",
+    "Hellboy",
+    "Hellcat",
+    "Hellstorm",
+    "Hercules",
+    "Hit-Girl",
+    "Hobgoblin",
+    "Hollow",
+    "Hulk",
+    "Human Torch",
+    "Huntress",
+    "Husk",
+    "Hydro-Man",
+    "Hyperion",
+    "Iceman",
+    "Impulse",
+    "Ink",
+    "Invisible Woman",
+    "Iron Fist",
+    "Iron Monger",
+    "Ironman",
+    "Isis",
+    "Jean Grey",
+    "Jigsaw",
+    "Joker",
+    "Jolt",
+    "Jubilee",
+    "Juggernaut",
+    "Junkpile",
+    "Justice",
+    "Kang",
+    "Kid Flash",
+    "Killer Croc",
+    "Kingpin",
+    "Klaw",
+    "Kraven the Hunter",
+    "Krypto",
+    "Lady Bullseye",
+    "Lady Deathstrike",
+    "Leech",
+    "Lex Luthor",
+    "Light Lass",
+    "Lightning Lad",
+    "Lightning Lord",
+    "Living Brain",
+    "Lobo",
+    "Loki",
+    "Longshot",
+    "Luna",
+    "Magneto",
+    "Magog",
+    "Magus",
+    "Mandarin",
+    "Martian Manhunter",
+    "Match",
+    "Maverick",
+    "Maxima",
+    "Medusa",
+    "Meltdown",
+    "Mephisto",
+    "Metallo",
+    "Metamorpho",
+    "Meteorite",
+    "Metron",
+    "Micro Lad",
+    "Mimic",
+    "Misfit",
+    "Miss Martian",
+    "Mister Freeze",
+    "Moloch",
+    "Molten Man",
+    "Monarch",
+    "Moon Knight",
+    "Moonstone",
+    "Morph",
+    "Mr Incredible",
+    "Mysterio",
+    "Mystique",
+    "Namorita",
+    "Nick Fury",
+    "Nightcrawler",
+    "Nightwing",
+    "Nite Owl",
+    "Northstar",
+    "Nova",
+    "Offspring",
+    "Omega Red",
+    "Onslaught",
+    "Osiris",
+    "Penguin",
+    "Phantom",
+    "Phantom Girl",
+    "Phoenix",
+    "Plastic Lad",
+    "Plastic Man",
+    "Plastique",
+    "Poison Ivy",
+    "Power Girl",
+    "Power Man",
+    "Psylocke",
+    "Punisher",
+    "Pyro",
+    "Quantum",
+    "Quailman",
+    "Question",
+    "Quicksilver",
+    "Quill",
+    "Raven",
+    "Red Arrow",
+    "Red Hood",
+    "Red Hulk",
+    "Red Mist",
+    "Red Skull",
+    "Red Tornado",
+    "Redeemer",
+    "Rick Flag",
+    "Riddler",
+    "Ripcord",
+    "Robin",
+    "Rocket Raccoon",
+    "Rogue",
+    "Ronin",
+    "Rorschach",
+    "Sabretooth",
+    "Sage",
+    "Sandman",
+    "Sasquatch",
+    "Scarecrow",
+    "Scarlet Spider",
+    "Scarlet Witch",
+    "Scorpion",
+    "Sentry",
+    "Shadow King",
+    "Shadowcat",
+    "Shatterstar",
+    "She-Hulk",
+    "She-Thing",
+    "Shriek",
+    "Shrinking Violet",
+    "Sif",
+    "Silk Spectre",
+    "Silver Surfer",
+    "Silverclaw",
+    "Sinestro",
+    "Siren",
+    "Sobek",
+    "Solomon Grundy",
+    "Songbird",
+    "Space Ghost",
+    "Spawn",
+    "Spectre",
+    "Speedy",
+    "Spiderman",
+    "Spyke",
+    "Stardust",
+    "Starfire",
+    "Stargirl",
+    "Star-Lord",
+    "Storm",
+    "Sub-Mariner",
+    "Sunspot",
+    "Superboy",
+    "Supergirl",
+    "Superman",
+    "Swamp Thing",
+    "Synch",
+    "Tempest",
+    "Thanos",
+    "The Comedian",
+    "Thing",
+    "Thor",
+    "Thunderbird",
+    "Thunderstrike",
+    "Thundra",
+    "Tigra",
+    "Tinkerer",,
+    "Titan",
+    "Toad",
+    "Toxin",
+    "Trickster",
+    "Two-Face",
+    "Ultragirl",
+    "Ultron",
+    "Vagabond",
+    "Valkyrie",
+    "Vanisher",
+    "Venom",
+    "Vertigo",
+    "Vindicator",
+    "Vision",
+    "Vulcan",
+    "Vulture",
+    "War Machine",
+    "Warbird",
+    "Warlock",
+    "Warp",
+    "Warpath",
+    "Wasp",
+    "Watcher",
+    "Wildfire",
+    "Wiz Kid",
+    "Wolfsbane",
+    "Wolverine",
+    "Wondra",
+    "Yellow Claw",
+    "Yellowjacket",
+    "Zatanna",
+    "Zoom"];
+
+uuid = ~~(Math.random()*superheros.length);
+
+var i=0;
+for(i=0; i<75; i++) {
+    add();
+}
+
+function add() {
+    addNode(superheros[(uuid-6)%superheros.length], -~~(Math.random()*70+30), ~~(Math.random()*center_nodes.length));
+}
+
+function kill() {
+}
+// *****
+
+
+function init_nodes( ) {
+    var i=0;
+    for (i=0; i<foci.length; i++) {
+        center_nodes.push({x: foci[i].x, y: foci[i].y, fixed: 1, foci_id: i, name: i});
+        uuid++;
+    }
+}
+
+
+function addNode(name, rssi, foci_id) {
+    //XXX: Perform some conversion on RSSI here based on room size
+    var node = {id: uuid, name: name, foci_id: foci_id};
+    var link = {source: node, target: center_nodes[foci_id], name: name, rssi: -rssi};
+    uuid++;
+
+    force.nodes().push(node);
+    force.links().push(link);
+
+    restart();
+}
+
+function removeNode(name) {
+    var nodes = force.nodes();
+    for (var i=0; i<nodes.length; i++) {
+        if (nodes[i]['name'] == name) {
+            force.nodes().splice(i, 1);
+        }
+    }
+
+    var links = force.links();
+    for (var i=0; i<links.length; i++) {
+        if (links[i]['name'] == name) {
+            force.links().splice(i, 1);
+        }
+    }
+
+    restart();
+}
+
+function tick(e) {
+    link.attr("x1", function(d) { return d.source.x; })
+        .attr("y1", function(d) { return d.source.y; })
+        .attr("x2", function(d) { return d.target.x; })
+        .attr("y2", function(d) { return d.target.y; });
+
+    // create artificial gravity towards foci
+    var k = 0.1*e.alpha;
+    force.nodes().forEach(function(d, i) {
+            d.y += (foci[d.foci_id].y - d.y)*k;
+            d.x += (foci[d.foci_id].x - d.x)*k;
+            });
+
+    // run collision detection
+    /*
+    svg.selectAll("circle")
+        .each(collide(0.5))
+        .attr("cx", 
+        .attr("
+        */
+
+    /*
+    node.attr("transform", function(d) {
+        // keep x in bounds
+        x_val = d.x
+        if (x_val > width) { x_val = width; }
+        if (x_val < 0) { x_val = 0; }
+
+        // keep y in bounds
+        y_val = d.y
+        if (y_val > height) { y_val = height; }
+        if (y_val < 0) { y_val = 0; }
+            
+        return "translate(" + x_val + "," + y_val + ")";});
+        */
+
+    node.attr("x", function(d) { return d.x - d.text.getBBox().width/2; })
+        .attr("y", function(d) { return d.y - d.text.getBBox().height/2; })
+        .attr("width", function(d) {
+            if (!d.fixed) { return (d.text.getBBox().width+4); }
+            else { return 2; }})
+        .attr("height", function(d) {
+            if (!d.fixed) { return (d.text.getBBox().height+4); }
+            else { return 2; }});
+    text.attr("x", function(d) { return d.x + 2; })
+        .attr("y", function(d) { return d.y + (d.text.getBBox().height/4) + 2; });
+}
+
+function restart() {
+    link = svg.selectAll(".link").data(force.links(), function(d) { return d.name; });
+    link.enter().insert("line", ".node")
+        .attr("class", "link")
+        .style("opacity", 1);
+
+    link.transition()
+        .duration(500)
+        .style("opacity", 1);
+
+    link.exit()
+        .transition()
+            .duration(300)
+            .style("opacity", 0)
+            .remove();
+
+    node = svg.selectAll("rect.node").data(force.nodes(), function(d) { return d.name; });
+    node.enter().append("rect")
+        .attr("class", "node")
+        .attr("fill", function(d) {
+            if (!d.fixed) { return '#F3F3F3';}
+            //if (!d.fixed) { return select_color(d.id); }
+            else { return 'black'; }})
+        .attr("stroke", function(d) {
+            if (!d.fixed) {return d3.rgb(select_color(d.id)).darker(2); }
+            else { return 'black'; }})
+        .attr("width", 0)
+        .attr("height", 0)
+        .attr("rx", 5)
+        .attr("ry", 5)
+        .style("opacity", 0);
+    text = svg.selectAll("text").data(force.nodes(), function(d) { return d.name; });
+    text.enter().append("text")
+        .attr("font-family", "droid sans")
+        .attr("font-size", "14px")
+        .attr("text-anchor", "middle")
+        .text(function(d) {
+            d['text'] = this; // this is a hack so I can access to the bounding box later
+            if (!d.fixed) { return d.name; }
+            else { return '';}})
+        .style("opacity", 0);
+
+    node.transition()
+        .duration(500)
+        .style("opacity", 1);
+    text.transition()
+        .duration(500)
+        .style("opacity", 1);
+
+    node.exit()
+        .transition()
+            .duration(300)
+            .style("opacity", 0)
+            .remove();
+    text.exit()
+        .transition()
+            .duration(300)
+            .style("opacity", 0)
+            .remove();
+
+
+    force.start();
+}
+
+</script>
