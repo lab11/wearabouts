@@ -120,7 +120,7 @@ def main():
     
     # setup logging
     log = logging.getLogger('bleScanner_log')
-    log.setLevel(logging.DEBUG)
+    log.setLevel(logging.ERROR)
     log_filename = '../logs/bleScanner_log_' + str(LOCATION.split('|')[-1]) + '.out'
     handler = logging.handlers.TimedRotatingFileHandler(log_filename,
             when='midnight', backupCount=7)
@@ -152,7 +152,7 @@ def main():
 
 class BLEScanner():
 
-    def __init__(self, log, queue=None, thread=None, sample_window=60):
+    def __init__(self, log, queue=None, thread=None, sample_window=10):
         self.msg_queue = queue
         self.thread = thread
         self.log = log
@@ -161,6 +161,7 @@ class BLEScanner():
         self.devices = {}
         self.last_packet = time.time()
         self.last_update = 0
+        self.last_join = time.time()
 
         # find nrf51822 dongle
         self.port = self.find_port()
@@ -213,7 +214,7 @@ class BLEScanner():
             dev['name'] = name
             dev['rssi']['newest'] = rssi
 
-            # save RSSI data. Only keep values from within the last minute
+            # save RSSI data. Only keep values from within the last sample window
             for timestamp in dev['rssi']['samples'].keys():
                 if float(timestamp) < (current_time - self.sample_window):
                     del dev['rssi']['samples'][timestamp]
@@ -241,6 +242,11 @@ class BLEScanner():
             # update screen
             self.update_screen()
 
+            # wait on the darn GATD poster to catch up to real time, if we must
+            if ((current_time - self.last_join) > 10):
+                self.last_join = current_time
+                self.msg_queue.join()
+
     def update_screen(self):
         global KNOWN_DEVICES
 
@@ -258,8 +264,9 @@ class BLEScanner():
             # print devices by RSSI with named devices always shown
             index = 0
             sorted_addrs = sorted(self.devices,
-                    key=lambda ble_addr: self.devices[ble_addr]['rssi']['average'],
+                    key=lambda ble_addr: self.devices[ble_addr]['rssi']['newest'],
                     reverse=True)
+                    #key=lambda ble_addr: self.devices[ble_addr]['rssi']['average'],
             other_lines = SCREEN_LINES - len([x for x in sorted_addrs if x in KNOWN_DEVICES])
 
             for ble_addr in sorted_addrs:
@@ -276,7 +283,8 @@ class BLEScanner():
         dev = self.devices[ble_addr]
         print_str = "(" + str(index) + ")" + \
                     "\tADDR: " + str(ble_addr) + \
-                    "  RSSI: " + str(dev['rssi']['average'])
+                    "  RSSI: " + str(dev['rssi']['newest'])
+                    #"  RSSI: " + str(dev['rssi']['average'])
 
         time_diff = int(round(time.time() - dev['timestamp']))
         print_str += "\tAgo: " + str(time_diff)
