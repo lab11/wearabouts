@@ -27,7 +27,7 @@ from sh import pdf2svg
 
 # *** Settings ***
 LABEL_PDF = 'sticker_logo_5.pdf'
-RANDOMIZE = False
+RANDOMIZE = True
 TEST_BOTTOM = False
 
 QR_CODE_STR = '{}|coilcube|A|http://lab11.github.io/monjolo'
@@ -47,7 +47,7 @@ label_specs['gap_x']    = 5.5
 label_specs['width_x']  = 53
 label_specs['offset_y'] = 45.2
 #36 38 45
-label_specs['gap_y']    = 5.6
+label_specs['gap_y']    = 5.5
 #0 6 5 5.5
 label_specs['height_y'] = 53.5
 #61
@@ -98,6 +98,8 @@ def main():
     print("Printing " + str(num_pages) + " pages")
     for page_num in range(1, num_pages+1):
         id_list = ids[labels_per_page*(page_num-1):labels_per_page*page_num]
+        if len(id_list) < labels_per_page:
+            id_list += random.sample(ids, (labels_per_page - len(id_list)))
         create_label_page(id_list, page_num)
 
 def get_coordinates ():
