@@ -24,10 +24,15 @@
 <script src="socket.io.min.js"></script>
 <script>
 
-var width = 1300;
-var height = 600;
+var width = document.documentElement.clientWidth;
+var height = document.documentElement.clientHeight;
+var scale_factor_height = (height/600);
+var scale_factor_width  = (width/1300);
+var sf = scale_factor_width;
+
 var uuid = 0;
 var init_complete = false;
+var testing = true;
 
 /*
 // clarkKerr_simple_900_700.png
@@ -40,11 +45,11 @@ var foci = [
 */
 // clarkKerr_simple_1100_500.png
 var foci = [
-    {x: 250, y: 200},
-    {x: 440, y: 420},
-    {x: 600, y: 200},
-    {x: 875, y: 325},
-    {x: 1100, y: 200}];
+    {x: 250*sf, y: 200*sf},
+    {x: 440*sf, y: 420*sf},
+    {x: 600*sf, y: 200*sf},
+    {x: 875*sf, y: 325*sf},
+    {x: 1100*sf, y: 200*sf}];
 
 var select_color = d3.scale.category10();
 
@@ -55,9 +60,9 @@ var force = d3.layout.force()
     .size([width, height])
     .nodes(center_nodes.slice(0)) // need to 
     .linkStrength(0.9)
-    .linkDistance(function(d) { return d.confidence; })
+    .linkDistance(function(d) { return d.confidence*sf; })
     .charge(-250)
-    .chargeDistance(100)
+    .chargeDistance(100*sf)
     .gravity(0)
     .friction(0.8)
     .on("tick", tick);
@@ -93,34 +98,409 @@ svg.append("image")
     .attr("width", 1100)
     .attr("height", 500)
     */
-//XXX: look at leaderboard for automatic resizing
 svg.append("image")
     .attr("class", "back-img")
     .attr("xlink:href", 'clarkKerr_simple_1100_500.png')
-    .attr("x", 125)
-    .attr("y", 50)
-    .attr("width", 1100)
-    .attr("height", 500)
+    .attr("x", 125*sf)
+    .attr("y", 50*sf)
+    .attr("width", 1100*sf)
+    .attr("height", 500*sf)
 
 svg.append("image")
     .attr("xlink:href", "whereaboutsLogo.png")
-    .attr("width", 610)
-    .attr("height", 40)
-    .attr("x", 200)
-    .attr("y", 10)
+    .attr("width", 610*sf)
+    .attr("height", 40*sf)
+    .attr("x", 200*sf)
+    .attr("y", 10*sf)
 
 restart();
 init_complete = true;
 
 var gatd_socket;
-onload = function() { 
-    gatd_socket = io.connect('inductor.eecs.umich.edu:8082/stream');
-    gatd_socket.on('connect', function(data) {
-        // query starting immediately
-        gatd_socket.emit('query', {'profile_id': '62MTxDGPhJ'});
-        });
-    gatd_socket.on('data', function(data) {
-            parse_data(data)});
+var superheros;
+if (testing) {
+    superheros = [
+    "Abomination",
+    "Abraxas",
+    "Agent Zero",
+    "Air-Walker",
+    "Alfred Pennyworth",
+    "Amazo",
+    "Ammo",
+    "Angel",
+    "Animal Man",
+    "Annihilus",
+    "Ant-Man",
+    "Anti-Monitor",
+    "Anti-Spawn",
+    "Anti-Venom",
+    "Apocalypse",
+    "Aquababy",
+    "Aqualad",
+    "Aquaman",
+    "Arachne",
+    "Archangel",
+    "Ares",
+    "Arsenal",
+    "Astro Boy",
+    "Atlas",
+    "Atom",
+    "Atom Girl",
+    "Aurora",
+    "Azazel",
+    "Azrael",
+    "Aztar",
+    "Bane",
+    "Banshee",
+    "Batgirl",
+    "Batman",
+    "Battlestar",
+    "Beast",
+    "Beast Boy",
+    "Beetle",
+    "Beyonder",
+    "Binary",
+    "Birdman",
+    "Bishop",
+    "Bizarro",
+    "Black Adam",
+    "Black Canary",
+    "Black Cat",
+    "Black Goliath",
+    "Black Widow",
+    "Blackout",
+    "Blackwing",
+    "Blackwulf",
+    "Blade",
+    "Blink",
+    "Blizzard",
+    "Blob",
+    "Bloodhawk",
+    "Bloodwraith",
+    "Blue Beetle",
+    "Bolt",
+    "Boomer",
+    "Booster Gold",
+    "Brainiac",
+    "Bullseye",
+    "Bumblebee",
+    "Bumbleboy",
+    "Cable",
+    "Callisto",
+    "Captain America",
+    "Captain Atom",
+    "Captain Britain",
+    "Captain Canuck",
+    "Captain Planet",
+    "Carnage",
+    "Catwoman",
+    "Cerebra",
+    "Chameleon",
+    "Changeling",
+    "Cheetah",
+    "Chromos",
+    "Chuck Norris",
+    "Cloak",
+    "Colossal Boy",
+    "Colossus",
+    "Corsair",
+    "Crimson Crusader",
+    "Crimson Dynamo",
+    "Cyborg",
+    "Cyclops",
+    "Cypher",
+    "Dagger",
+    "Daredevil",
+    "Darkhawk",
+    "Darkman",
+    "Darkside",
+    "Darkstar",
+    "Dash",
+    "Dazzler",
+    "Deadman",
+    "Deadpool",
+    "Deadshot",
+    "Deathlok",
+    "Deathstroke",
+    "Doctor Doom",
+    "Doctor Fate",
+    "Doctor Octopus",
+    "Doctor Strange",
+    "Domino",
+    "Doomsday",
+    "Doppelganger",
+    "Dr. Manhattan",
+    "Ego",
+    "Elastigirl",
+    "Electro",
+    "Elektra",
+    "Elongated Man",
+    "Exodus",
+    "Falcon",
+    "Firebird",
+    "Firelord",
+    "Firestar",
+    "Fixer",
+    "Flash Gordon",
+    "Flash",
+    "Frenzy",
+    "Frigga",
+    "Galactus",
+    "Gambit",
+    "Garbage Man",
+    "General Zod",
+    "Genesis",
+    "Ghost Rider",
+    "Giant-Man",
+    "Giganta",
+    "Goblin Queen",
+    "Gog",
+    "Goliath",
+    "Granny Goodness",
+    "Green Arrow",
+    "Green Goblin",
+    "Groot",
+    "Guardian",
+    "Hancock",
+    "Harley Quinn",
+    "Havok",
+    "Hawkeye",
+    "Hawkgirl",
+    "Hawkman",
+    "Hawkwoman",
+    "Hellboy",
+    "Hellcat",
+    "Hellstorm",
+    "Hercules",
+    "Hit-Girl",
+    "Hobgoblin",
+    "Hollow",
+    "Hulk",
+    "Human Torch",
+    "Huntress",
+    "Husk",
+    "Hydro-Man",
+    "Hyperion",
+    "Iceman",
+    "Impulse",
+    "Ink",
+    "Invisible Woman",
+    "Iron Fist",
+    "Iron Monger",
+    "Ironman",
+    "Jean Grey",
+    "Jigsaw",
+    "Joker",
+    "Jolt",
+    "Jubilee",
+    "Juggernaut",
+    "Junkpile",
+    "Justice",
+    "Kang",
+    "Kid Flash",
+    "Killer Croc",
+    "Kingpin",
+    "Klaw",
+    "Kraven the Hunter",
+    "Krypto",
+    "Lady Bullseye",
+    "Lady Deathstrike",
+    "Leech",
+    "Lex Luthor",
+    "Light Lass",
+    "Lightning Lad",
+    "Lightning Lord",
+    "Living Brain",
+    "Lobo",
+    "Loki",
+    "Longshot",
+    "Luna",
+    "Magneto",
+    "Magog",
+    "Magus",
+    "Mandarin",
+    "Martian Manhunter",
+    "Match",
+    "Maverick",
+    "Maxima",
+    "Medusa",
+    "Meltdown",
+    "Mephisto",
+    "Metallo",
+    "Metamorpho",
+    "Meteorite",
+    "Metron",
+    "Micro Lad",
+    "Mimic",
+    "Misfit",
+    "Miss Martian",
+    "Mister Freeze",
+    "Moloch",
+    "Molten Man",
+    "Monarch",
+    "Moon Knight",
+    "Moonstone",
+    "Morph",
+    "Mr Incredible",
+    "Mysterio",
+    "Mystique",
+    "Namorita",
+    "Nick Fury",
+    "Nightcrawler",
+    "Nightwing",
+    "Nite Owl",
+    "Northstar",
+    "Nova",
+    "Offspring",
+    "Omega Red",
+    "Onslaught",
+    "Osiris",
+    "Penguin",
+    "Phantom",
+    "Phantom Girl",
+    "Phoenix",
+    "Plastic Lad",
+    "Plastic Man",
+    "Plastique",
+    "Poison Ivy",
+    "Power Girl",
+    "Power Man",
+    "Psylocke",
+    "Punisher",
+    "Pyro",
+    "Quantum",
+    "Quailman",
+    "Question",
+    "Quicksilver",
+    "Quill",
+    "Raven",
+    "Red Arrow",
+    "Red Hood",
+    "Red Hulk",
+    "Red Mist",
+    "Red Skull",
+    "Red Tornado",
+    "Redeemer",
+    "Rick Flag",
+    "Riddler",
+    "Ripcord",
+    "Robin",
+    "Rocket Raccoon",
+    "Rogue",
+    "Ronin",
+    "Rorschach",
+    "Sabretooth",
+    "Sage",
+    "Sandman",
+    "Sasquatch",
+    "Scarecrow",
+    "Scarlet Spider",
+    "Scarlet Witch",
+    "Scorpion",
+    "Sentry",
+    "Shadow King",
+    "Shadowcat",
+    "Shatterstar",
+    "She-Hulk",
+    "She-Thing",
+    "Shriek",
+    "Shrinking Violet",
+    "Sif",
+    "Silk Spectre",
+    "Silver Surfer",
+    "Silverclaw",
+    "Sinestro",
+    "Siren",
+    "Sobek",
+    "Solomon Grundy",
+    "Songbird",
+    "Space Ghost",
+    "Spawn",
+    "Spectre",
+    "Speedy",
+    "Spiderman",
+    "Spyke",
+    "Stardust",
+    "Starfire",
+    "Stargirl",
+    "Star-Lord",
+    "Static Shock",
+    "Storm",
+    "Sub-Mariner",
+    "Sunspot",
+    "Superboy",
+    "Supergirl",
+    "Superman",
+    "Swamp Thing",
+    "Synch",
+    "Tempest",
+    "Thanos",
+    "The Comedian",
+    "Thing",
+    "Thor",
+    "Thunderbird",
+    "Thunderstrike",
+    "Thundra",
+    "Tigra",
+    "Tinkerer",
+    "Titan",
+    "Toad",
+    "Toxin",
+    "Trickster",
+    "Two-Face",
+    "Ultragirl",
+    "Ultron",
+    "Vagabond",
+    "Valkyrie",
+    "Vanisher",
+    "Venom",
+    "Vertigo",
+    "Vindicator",
+    "Vision",
+    "Vulcan",
+    "Vulture",
+    "War Machine",
+    "Warbird",
+    "Warlock",
+    "Warp",
+    "Warpath",
+    "Wasp",
+    "Watcher",
+    "Wildfire",
+    "Wiz Kid",
+    "Wolfsbane",
+    "Wolverine",
+    "Wondra",
+    "Yellow Claw",
+    "Yellowjacket",
+    "Zatanna",
+    "Zoom"];
+
+    uuid = ~~(Math.random()*superheros.length);
+
+    var i=0;
+    for(i=0; i<75; i++) {
+        addOrUpdateNode(superheros[(uuid-6)%superheros.length], Math.random(), ~~(Math.random()*center_nodes.length));
+    }
+    init_complete = true;
+
+} else {
+    onload = function() { 
+        gatd_socket = io.connect('inductor.eecs.umich.edu:8082/stream');
+        gatd_socket.on('connect', function(data) {
+            // query starting immediately
+            gatd_socket.emit('query', {'profile_id': '62MTxDGPhJ'});
+            });
+        gatd_socket.on('data', function(data) {
+                parse_data(data)});
+    }
+}
+
+// function for testing only
+function doStuff() {
+    removeNode(superheros[uuid-40]);
+    moveNode(superheros[uuid-10], ~~(Math.random()*70+30), ~~(Math.random()*center_nodes.length));
+    add();
 }
 
 function init_nodes( ) {
@@ -345,13 +725,13 @@ function restart() {
             else { return 'black'; }})
         .attr("width", 0)
         .attr("height", 0)
-        .attr("rx", 5)
-        .attr("ry", 5)
+        .attr("rx", 5*sf)
+        .attr("ry", 5*sf)
         .style("opacity", 0);
     text = svg.selectAll("text").data(force.nodes(), function(d) { return d.name; });
     text.enter().append("text")
         .attr("class", "label")
-        .attr("font-size", "14px")
+        .attr("font-size", 14*sf)
         .attr("text-anchor", "middle")
         .text(function(d) {
             d['text'] = this; // this is a hack so I can access to the bounding box later
