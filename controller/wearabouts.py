@@ -121,7 +121,7 @@ class PresenceController ():
 
             # check data for validity
             if (pkt == None or 'location_str' not in pkt or 'time' not in pkt or
-                    'uniqname' not in pkt):
+                    'uniqname' not in pkt or 'location_id' not in pkt):
                 continue
             if ('full_name' not in pkt):
                 # there should never be a uniqname but not a full_name, but if
@@ -139,6 +139,7 @@ class PresenceController ():
                 self.presences[uniqname] = {
                         'full_name': pkt['full_name'],
                         'location': 'None',
+                        'location_id': -1,
                         'present_since': 0,
                         'last_seen': 0,
                         'confidence': 0,
@@ -149,6 +150,8 @@ class PresenceController ():
             location = pkt['location_str']
             if location not in person['location_data']:
                 person['location_data'][location] = {
+                        'last_seen': 0,
+                        'location_id': pkt['location_id'],
                         'potentially_present': False,
                         'present_by': 'None'}
             evidence = person['location_data'][location]
@@ -345,6 +348,7 @@ class PresenceController ():
                     # current location still the best
                     new_location = curr_location
                     confidence = (1 - (-best_rssi)/101.0)
+                #XXX: there appears to be a bug with this???
                 elif not self.present_by('bleAddr', uniqname, curr_location):
                     # new location has ble which is best
                     new_location = random.choice(best_rssi_locs)
@@ -383,6 +387,10 @@ class PresenceController ():
             person['location'] = location
             person['present_since'] = curr_time
             post_data = True
+            if location != 'None':
+                person['location_id'] = person['location_data'][location]['location_id']
+            else:
+                person['location_id'] = -1
 
         present_by = 'None'
         if location != 'None':
@@ -395,6 +403,7 @@ class PresenceController ():
             data = {'uniqname': uniqname,
                     'full_name': person['full_name'],
                     'location_str': person['location'],
+                    'location_id': person['location_id'],
                     'present_since': person['present_since'],
                     'last_seen': person['last_seen'],
                     'confidence': person['confidence'],
@@ -415,13 +424,14 @@ class PresenceController ():
         person = self.presences[uniqname]
         evidence = person['location_data'][location]
         curr_location = person['location']
-        last_seen_time = person['last_seen']
+        last_seen_time = person['location_data'][location]['last_seen']
 
         # check if ble RSSI is strong enough
         if 'bleAddr' in evidence:
             if ((curr_time - evidence['bleAddr']['time']) < self.BLE_DURATION and
                     evidence['bleAddr']['rssi'] >= self.BLE_MIN_RSSI):
                 person['last_seen'] = evidence['bleAddr']['time']
+                person['location_data'][location]['last_seen'] = evidence['bleAddr']['time']
                 evidence['present_by'] = 'bleAddr'
                 evidence['potentially_present'] = True
                 return True
