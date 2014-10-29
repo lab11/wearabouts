@@ -244,7 +244,7 @@ class PresenceController ():
             #        for 
 
     def update_screen(self):
-        SCREEN_LINES = 52
+        SCREEN_LINES = 58
 
         # only update once per second at most
 
@@ -266,14 +266,14 @@ class PresenceController ():
             for uniqname in sorted_uniqnames:
                 index += 1
                 self._print_person(index, uniqname)
-                if index == 52:
+                if index == SCREEN_LINES:
                     break
 
     def _print_person(self, index, uniqname):
         person = self.presences[uniqname]
         location = person['location']
 
-        rssi = -200
+        rssi = '--'
         if location != 'None':
             rssi = person['location_data'][location]['bleAddr']['rssi']
 
