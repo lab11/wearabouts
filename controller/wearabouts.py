@@ -399,7 +399,7 @@ class PresenceController ():
         #XXX: if there is too much data, this could be limited to location
         #   changes only, rather than on any update
         # post to GATD
-        if post_data:
+        if True or post_data:
             data = {'uniqname': uniqname,
                     'full_name': person['full_name'],
                     'location_str': person['location'],
