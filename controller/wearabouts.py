@@ -101,6 +101,8 @@ class PresenceController ():
         self.last_packet = 0
         self.start_time = time.time()
 
+        self.last_gatd_post = {}
+
     def monitor(self):
         while True:
 
@@ -144,6 +146,7 @@ class PresenceController ():
                         'last_seen': 0,
                         'confidence': 0,
                         'location_data': {}}
+                self.last_gatd_post[uniqname] = 0
             person = self.presences[uniqname]
 
             # create location if necessary
@@ -382,11 +385,9 @@ class PresenceController ():
 
         person['confidence'] = max(confidence, 0)
 
-        post_data = False
         if (location != curr_location):
             person['location'] = location
             person['present_since'] = curr_time
-            post_data = True
             if location != 'None':
                 person['location_id'] = person['location_data'][location]['location_id']
             else:
@@ -396,10 +397,15 @@ class PresenceController ():
         if location != 'None':
             present_by = person['location_data'][location]['present_by']
 
+        post_data = False
+        if ((curr_time-self.last_gatd_post[uniqname]) > 20):
+            post_data = True
+            self.last_gatd_post[uniqname] = curr_time
+
         #XXX: if there is too much data, this could be limited to location
         #   changes only, rather than on any update
         # post to GATD
-        if True or post_data:
+        if post_data:
             data = {'uniqname': uniqname,
                     'full_name': person['full_name'],
                     'location_str': person['location'],
