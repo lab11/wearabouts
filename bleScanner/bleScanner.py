@@ -240,12 +240,14 @@ class BLEScanner():
                 #   This assumption needds to be checked at some point
 
             # update screen
-            self.update_screen()
+            #self.update_screen()
 
             # wait on the darn GATD poster to catch up to real time, if we must
             if ((current_time - self.last_join) > 10):
+                print("joining")
                 self.last_join = current_time
                 self.msg_queue.join()
+                print("continuing")
 
     def update_screen(self):
         global KNOWN_DEVICES

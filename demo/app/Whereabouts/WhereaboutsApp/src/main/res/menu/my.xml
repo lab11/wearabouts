@@ -1,0 +1,9 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:context="edu.umich.eecs.lab11.whereabouts.FragmentActivity" >
+    <item android:id="@+id/info"
+        android:icon="@android:drawable/ic_menu_info_details"
+        android:checkable="false"
+        android:orderInCategory="1"
+        android:showAsAction="ifRoom"/>
+</menu>
