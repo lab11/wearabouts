@@ -51,7 +51,7 @@ public class FragmentActivity extends Activity implements ActionBar.TabListener 
     SectionsPagerAdapter mSectionsPagerAdapter;
     public ArrayList<String> blah;
     public BluetoothAdapter mBluetoothAdapter;
-    public boolean mScanning;
+    public boolean mScanning = false;
     public Handler mHandler;
     public JsonObject profiles;
     private static final int REQUEST_ENABLE_BT = 1;
@@ -301,17 +301,17 @@ public class FragmentActivity extends Activity implements ActionBar.TabListener 
     }
 
     private void scanLeDevice(final boolean enable) {
-        if (enable & !paused) {
+        if (enable & !paused & !mScanning) {
             // Stops scanning after a pre-defined scan period.
             mHandler.postDelayed(new Runnable() {
                 @Override
                 public void run() {
                     scanLeDevice(false);
                 }
-            }, SCAN_PERIOD);
+            }, SCAN_PERIOD/2);
 
             mScanning = true;
-            mBluetoothAdapter.startLeScan(mLeScanCallback);
+            try {mBluetoothAdapter.startLeScan(mLeScanCallback);} catch(Exception e) {e.printStackTrace();}
         } else {
             if (!paused)
                 mHandler.postDelayed(new Runnable() {
@@ -321,9 +321,11 @@ public class FragmentActivity extends Activity implements ActionBar.TabListener 
                     }
                 }, SCAN_PERIOD/2);
             mScanning = false;
-            mBluetoothAdapter.stopLeScan(mLeScanCallback);
-            devicescan.mLeDeviceListAdapter.clear();
-            blescan.mLeDeviceListAdapter.clear();
+            try {
+                mBluetoothAdapter.stopLeScan(mLeScanCallback);
+                devicescan.mLeDeviceListAdapter.clear();
+                blescan.mLeDeviceListAdapter.clear();
+            } catch (Exception e) {e.printStackTrace();}
         }
     }
 
@@ -333,15 +335,21 @@ public class FragmentActivity extends Activity implements ActionBar.TabListener 
 
         protected JsonObject doInBackground(String... urlString) {
             try {
-                URL url = new URL(urlString[0]);
-                HttpURLConnection con = (HttpURLConnection) url.openConnection();
-                String json = readStream(con.getInputStream());
+                String json;
+                try {
+                    URL url = new URL(urlString[0]);
+                    HttpURLConnection con = (HttpURLConnection) url.openConnection();
+                    json = readStream(con.getInputStream());
+                    if (json.length()<30) throw new Exception();
+                } catch(Exception e) {
+                    json = readStream(getAssets().open("tree.json"));
+                }
                 JsonParser jp = new JsonParser();
                 JsonObject root = jp.parse(json).getAsJsonObject();
 //                JsonObject blah = root.getAsJsonObject().getAsJsonObject("fitbit_id");
                 JsonObject blah = root.getAsJsonObject().getAsJsonObject("ble_addr");
 //                blah.add("E0:5E:5A:28:85:E3".toLowerCase(),jp.parse("{\"uniqname\":{\"Batman\":{}}}"));
-                blah.add("E7:31:B9:27:16:90".toLowerCase(),jp.parse("{\"full_name\":{\"Superman\":{}}}"));
+//                blah.add("E7:31:B9:27:16:90".toLowerCase(),jp.parse("{\"full_name\":{\"Superman\":{}}}"));
                 return blah;//.get("explore").getAsJsonObject();;
             } catch (Exception e) {
                 e.printStackTrace();

@@ -29,7 +29,10 @@ import android.widget.ListView;
 import android.widget.TextView;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 
 /**
@@ -68,7 +71,8 @@ public class BLEScanFragment extends ListFragment {
 
     @Override
     public void onListItemClick(ListView l, View v, int position, long id) {
-        final BluetoothDevice device = mLeDeviceListAdapter.getDevice(position);
+        final BTDevice dev = mLeDeviceListAdapter.getDevice(position);
+        final BluetoothDevice device = dev.device;
         if (device == null) return;
         final Intent intent = new Intent(fa, DeviceControlActivity.class);
         intent.putExtra(DeviceControlActivity.EXTRAS_DEVICE_NAME, device.getName());
@@ -80,31 +84,59 @@ public class BLEScanFragment extends ListFragment {
         startActivity(intent);
     }
 
+    public class BTDevice {
+        public BluetoothDevice device;
+        public Integer rssi;
+        public boolean keep;
+        @Override
+        public boolean equals(Object obj) {
+            return ((obj instanceof BluetoothDevice) && obj.equals(this.device)) || ((obj instanceof BTDevice) && ((BTDevice)obj).device.equals(this.device));
+        }
+    }
+
     // Adapter for holding devices found through scanning.
     public class LeDeviceListAdapter extends BaseAdapter {
-        private ArrayList<BluetoothDevice> mLeDevices;
+        private ArrayList<BTDevice> mLeDevices;
         private LayoutInflater mInflator;
-        private HashMap<String,Integer> rssiOf = new HashMap<String,Integer>();
 
         public LeDeviceListAdapter() {
             super();
-            mLeDevices = new ArrayList<BluetoothDevice>();
+            mLeDevices = new ArrayList<BTDevice>();
             mInflator = fa.getLayoutInflater();
         }
 
         public void addDevice(BluetoothDevice device, final int rssi) {
-            if(!mLeDevices.contains(device)) {
-                mLeDevices.add(device);
+            BTDevice dev = new BTDevice();
+            dev.device = device;
+            dev.rssi = rssi;
+            dev.keep = true;
+            if(!mLeDevices.contains(dev)) {
+                mLeDevices.add(dev);
+            } else {
+                mLeDevices.set(mLeDevices.indexOf(dev),dev);
             }
-            rssiOf.put(device.getAddress(),rssi);
+//            System.out.println(device.getAddress() + "," + );
+            Collections.sort(mLeDevices, new Comparator<BTDevice>() {
+                @Override
+                public int compare(BTDevice bd1, BTDevice bd2) {
+                    return (bd2.rssi - bd1.rssi);
+                }
+            });
         }
 
-        public BluetoothDevice getDevice(int position) {
+        public BTDevice getDevice(int position) {
             return mLeDevices.get(position);
         }
 
         public void clear() {
-            mLeDevices.clear();
+            for (Iterator<BTDevice> iterator = mLeDevices.iterator(); iterator.hasNext();) {
+                BTDevice device = iterator.next();
+                if (!device.keep) {
+                    iterator.remove();
+                } else {
+                    device.keep=false;
+                }
+            }
         }
 
         @Override
@@ -137,7 +169,8 @@ public class BLEScanFragment extends ListFragment {
                 viewHolder = (ViewHolder) view.getTag();
             }
 
-            BluetoothDevice device = mLeDevices.get(i);
+            BTDevice dev = mLeDevices.get(i);
+            BluetoothDevice device = dev.device;
             String deviceName = device.getName();
             int resID = getResources().getIdentifier(String.valueOf(R.drawable.bluetooth),"drawable",fa.getPackageName());
             viewHolder.image.setImageResource(resID);
@@ -145,7 +178,7 @@ public class BLEScanFragment extends ListFragment {
                 viewHolder.deviceName.setText(deviceName);
             else
                 viewHolder.deviceName.setText(R.string.unknown_device);
-            viewHolder.deviceAddress.setText(device.getAddress() + " | " + rssiOf.get(device.getAddress()));
+            viewHolder.deviceAddress.setText(device.getAddress() + " | " + dev.rssi);
 
             return view;
         }
