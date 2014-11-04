@@ -1,24 +1,82 @@
-<html>
-  <head>
+<!DOCTYPE html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=700, initial-scale=.5" />
+    <style>
+        body  {margin:0; min-height:800px; overflow:hidden; font-family: "Droid Sans", "Tahoma", "sans-serif"; font-size:5px;}
+        #map {width:1400px; height:1600px; background:url("clarkKerr_simple_700_900.png"); background-size:cover; transition: all 1s; -webkit-transform-origin:0 0;}
+        #ins {position:fixed; bottom:0px; width:700px; background:rgba(255,255,255,.5); font-size:large; text-align:center;}
+        #rm0 {width:190px; height: 300px; left: 200px; top: 110px;}
+        #rm1 {width:480px; height: 300px; left: 590px; top: 110px;}
+        #rm2 {width:400px; height: 170px; left: 390px; top: 570px;}
+        #rm3 {width:270px; height: 520px; left: 404px; top:1020px;}
+        #rm4 {width:350px; height: 380px; left: 676px; top:1020px;}
+        .rm0 {-webkit-transform: rotate( 0deg) scale( 2, 2) translate(-130px, -100px);}
+        .rm1 {-webkit-transform: rotate(90deg) scale( 2, 2) translate(-590px, -432px);}
+        .rm2 {-webkit-transform: rotate(90deg) scale( 2, 2) translate(-390px, -830px);}
+        .rm3 {-webkit-transform: rotate( 0deg) scale( 2, 2) translate(-362px,-1020px);}
+        .rm4 {-webkit-transform: rotate( 0deg) scale( 2, 2) translate(-675px,-1020px);}
+        .ovw {-webkit-transform: rotate( 0deg) scale(.5,.5) translate(    0px,    0px);}
+        .room {position:absolute; overflow:hidden;}
+        .room img {width:32px; height:32px; margin-bottom:-2px; border-radius:32px;}
+        .person {max-width:32px; width:32px; margin:0px 5px 5px 5px; max-height:42px; height:42px; transition: all 1s; float:left; text-align:center; overflow:hidden;}
+        .rm1 .person,.rm2 .person {-webkit-transform: rotate(-90deg);}
+
+
+    </style>
     <script src="http://inductor.eecs.umich.edu/bower_components/socket.io-client/dist/socket.io.min.js"></script>
     <script src="http://inductor.eecs.umich.edu/bower_components/jquery/dist/jquery.min.js"></script>
-  </head>
-  <body style="background:#aaa">
-    <div></div>
+</head>
+<body>
+    <div id="map" class="ovw">
+        <div id="rm0" class="room"></div>
+        <div id="rm1" class="room"></div>
+        <div id="rm2" class="room"></div>
+        <div id="rm3" class="room"></div>
+        <div id="rm4" class="room"></div>
+    </div>
+    <div id="ins"><b>Clark Kerr Center</b><br />TOUCH A ROOM TO ZOOM IN</div>
+
     <script>
-    onload = function() {
-      socket = io.connect('inductor.eecs.umich.edu:8082/stream');
-      console.log("HEYY");
-      socket.on('connect', function (data) { socket.emit('query', {'profile_id':'hsYQx8blbd','time': 30*60*1000 } ); });
-      socket.on('data', function (data) { 
-        s="WHEREABOUTS::" + data['location_str']; 
-        a=data['person_list']; 
-        for (n in a) for (x in a[n]) s+="::"+x; 
-        console.log(s);
-        // document.querySelector('div').innerHTML += s + '<br />';
-        AndroidFunction.showToast(s);
-      });
-    }
+
+        $(".room").click(function() {
+            $("#map").toggleClass(this.id);
+            $("#map").toggleClass("ovw");
+        });
+
+        var gatd_socket;
+        onload = function() {
+            gatd_socket = io.connect('inductor.eecs.umich.edu:8082/stream');
+            gatd_socket.on('connect', function(data) {
+                gatd_socket.emit('query', {'profile_id': '62MTxDGPhJ','time':10*60*1000});
+            });
+            gatd_socket.on('data', function(data) {
+                    parse_data(data);
+            });
+        }
+        parse_data = function(data) {
+            name = data['full_name'].replace(/ /g,"-");
+            name = name.replace(".","");
+            confidence = data['confidence'];
+            loc = data['location_id'];
+            if (loc == -1) {
+                $("#"+name).remove();
+            } else {
+                locmap=[0,2,1,3,4];
+                if ($("#"+name).length!=0) {
+                    if ($("#"+name).parent().attr("id")!="rm"+locmap[loc]) {
+                        $("#rm"+locmap[loc]).append($("#"+name));
+                    }
+                } else {
+                    $('<div>',{id:name,class:"person"}).prepend(
+                      $('<img>',{src:"super/" + name+".jpg"}).error(function() {
+                        $( this ).attr( "src", "unknown.png" );
+                      }))
+                      .append('<span>'+data['full_name']+'</span>')
+                      .appendTo($("#rm"+locmap[loc]));
+                }
+            }
+        }
+
     </script>
-  </body>
-</html>
+</body>
