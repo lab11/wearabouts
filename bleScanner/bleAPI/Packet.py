@@ -285,6 +285,9 @@ class PacketReader():
             else:
                 time.sleep(0.01)
         return (None, None)
+
+    def flushSerial(self):
+        self.uart.flush()
         
 class Packet:
         

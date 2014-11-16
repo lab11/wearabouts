@@ -14,7 +14,7 @@ from threading import Thread
 from bleAPI import Packet
 from bleAPI import Exceptions
 
-#XXX: mac address for terraswarm demos
+# recording scanner mac address for determining location automatically
 import subprocess
 command = "ifconfig eth0 | grep HWaddr | cut -dH -f2 | cut -d\  -f2"
 MAC_ADDRESS = subprocess.check_output(command, shell=True)[0:-1].upper()
@@ -115,8 +115,8 @@ def main():
     #             LOCATION = user_input
     #     else:
     #         LOCATION = sys.argv[1]
-    #XXX: Location hard-coded to 'terraswarm-demo' for demos
-    LOCATION = 'terraswarm-demo'
+    #XXX: for now location is set to 'demo' and updated in the formatter
+    LOCATION = 'demo'
     
     # setup logging
     log = logging.getLogger('bleScanner_log')
@@ -236,18 +236,19 @@ class BLEScanner():
 
                 # push data to thread to be posted
                 self.msg_queue.put([ble_addr, dev])
-                #XXX: we are assuming right now that the GATDPoster will keep up with us.
-                #   This assumption needds to be checked at some point
 
             # update screen
-            #self.update_screen()
+            self.update_screen()
 
-            # wait on the darn GATD poster to catch up to real time, if we must
+            # wait on the darn GATD poster to catch up to real time
             if ((current_time - self.last_join) > 10):
-                print("joining")
                 self.last_join = current_time
                 self.msg_queue.join()
-                print("continuing")
+
+                # flush the serial buffer if we got behind while joining
+                if ((time.time() - current_time) > 1):
+                    #print("Had to flush: " + str(int(time.time() - current_time)) + " seconds")
+                    self.reader.flushSerial()
 
     def update_screen(self):
         global KNOWN_DEVICES
@@ -321,7 +322,6 @@ class BLEScanner():
         except (SerialException, ValueError):
             self.log.error(curr_datetime() + "ERROR - UART read error")
             return None
-            #XXX: See how common these are and try to handle the problem
         else:
             return self._process_packet(packet)
 
@@ -365,17 +365,17 @@ class GATDPoster(Thread):
         while True:
             # look for a packet
             [ble_addr, dev] = self.msg_queue.get()
-            #XXX: added mac address for terraswarm demos
             data = {
                     'location_str': LOCATION,
                     'ble_addr': ble_addr,
                     'rssi': dev['rssi']['newest'],
                     'avg_rssi': dev['rssi']['average'],
                     'name': dev['name'],
-                    'bbb_mac_addr': MAC_ADDRESS
+                    'scanner_macAddr': MAC_ADDRESS
                     }
 
             # post to GATD
+            #XXX: Change this to do UDP posts instead of HTTP posts for speed
             try:
                 req = urllib2.Request(BLEADDR_POST_ADDR)
                 req.add_header('Content-Type', 'application/json')

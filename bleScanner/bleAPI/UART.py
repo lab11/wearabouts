@@ -76,6 +76,9 @@ class Uart:
             raise
         
         return nBytes
+
+    def flush(self):
+        self.ser.flushInput()
     
 
 def list_serial_ports():
