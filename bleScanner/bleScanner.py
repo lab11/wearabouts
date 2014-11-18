@@ -245,11 +245,6 @@ class BLEScanner():
                 self.last_join = current_time
                 self.msg_queue.join()
 
-                # flush the serial buffer if we got behind while joining
-                if ((time.time() - current_time) > 1):
-                    #print("Had to flush: " + str(int(time.time() - current_time)) + " seconds")
-                    self.reader.flushSerial()
-
     def update_screen(self):
         global KNOWN_DEVICES
 
