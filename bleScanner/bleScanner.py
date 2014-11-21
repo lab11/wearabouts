@@ -10,6 +10,7 @@ import glob
 import urllib2
 import logging
 import logging.handlers
+import argparse
 from threading import Thread
 from bleAPI import Packet
 from bleAPI import Exceptions
@@ -21,6 +22,7 @@ MAC_ADDRESS = subprocess.check_output(command, shell=True)[0:-1].upper()
 
 try:
     from serial import SerialException
+    import serial.tools.list_ports
 except ImportError:
     print('Could not import the pyserial library.')
     print('sudo pip install pyserial')
@@ -45,6 +47,8 @@ Locations should be specified in the format:
 
 The following locations have been seen historically:"""
 LOCATION = ""
+
+LOCAL_FILE = ""
 
 PACKET_COUNT = 0
 UNIQUE_COUNT = 0
@@ -81,7 +85,15 @@ KNOWN_DEVICES = {
         }
 
 def main():
-    global USAGE, LOCATION
+    global USAGE, LOCATION, LOCAL_FILE
+
+    # argument parsing
+    parser = argparse.ArgumentParser(description='Scan for bluetooth low-energy devices.')
+    parser.add_argument('-local', '--local', help='Run script locally. Specify output file')
+    args = parser.parse_args()
+
+    if args.local:
+        LOCAL_FILE = args.local
 
     # get a list of previously scanned locations
     #try:
@@ -117,7 +129,7 @@ def main():
     #         LOCATION = sys.argv[1]
     #XXX: for now location is set to 'demo' and updated in the formatter
     LOCATION = 'demo'
-    
+
     # setup logging
     log = logging.getLogger('bleScanner_log')
     log.setLevel(logging.ERROR)
@@ -139,7 +151,10 @@ def main():
     post_thread = None
     if LOCATION != 'test':
         msg_queue = Queue.Queue()
-        post_thread = GATDPoster(msg_queue, log=log)
+        if LOCAL_FILE:
+            post_thread = LocalPoster(msg_queue, log=log)
+        else:
+            post_thread = GATDPoster(msg_queue, log=log)
 
     # begin BLE scans, catch all exceptions and try to keep running
     scanner = BLEScanner(queue = msg_queue, thread=post_thread, log=log)
@@ -384,6 +399,45 @@ class GATDPoster(Thread):
             finally:
                 self.msg_queue.task_done()
 
+
+class LocalPoster(Thread):
+    def __init__(self, queue, log=None):
+        global LOCAL_FILE
+
+        # init thread
+        super(LocalPoster, self).__init__()
+        self.daemon = True
+
+        # init data
+        self.msg_queue = queue
+        self.log = log
+
+        # try to open file
+        self.f = open(LOCAL_FILE, 'a+')
+
+        # autostart thread
+        self.start()
+
+    def run(self):
+        global LOCATION
+
+        while True:
+            # look for a packet
+            [ble_addr, dev] = self.msg_queue.get()
+            data = {
+                    'time': dev['timestamp'],
+                    'location_str': LOCATION,
+                    'ble_addr': ble_addr,
+                    'rssi': dev['rssi']['newest'],
+                    'avg_rssi': dev['rssi']['average'],
+                    'name': dev['name'],
+                    'scanner_macAddr': MAC_ADDRESS
+                    }
+
+            # write to file
+            self.f.write(str(json.dumps(data)) + "\n")
+
+            self.msg_queue.task_done()
 
 def curr_datetime():
     return time.strftime("%m/%d/%Y %H:%M:%S ")
