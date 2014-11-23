@@ -149,15 +149,18 @@ def main():
     # create thread to handle posting to GATD
     msg_queue = None
     post_thread = None
+    rate_limit = True
     if LOCATION != 'test':
         msg_queue = Queue.Queue()
         if LOCAL_FILE:
             post_thread = LocalPoster(msg_queue, log=log)
+            rate_limit = False
         else:
             post_thread = GATDPoster(msg_queue, log=log)
+            rate_limit = True
 
     # begin BLE scans, catch all exceptions and try to keep running
-    scanner = BLEScanner(queue = msg_queue, thread=post_thread, log=log)
+    scanner = BLEScanner(queue = msg_queue, thread=post_thread, log=log, rate_limit=rate_limit)
     while True:
         try:
             scanner.scan()
@@ -167,11 +170,12 @@ def main():
 
 class BLEScanner():
 
-    def __init__(self, log, queue=None, thread=None, sample_window=10):
+    def __init__(self, log, queue=None, thread=None, sample_window=10, rate_limit=True):
         self.msg_queue = queue
         self.thread = thread
         self.log = log
         self.sample_window = sample_window
+        self.rate_limit = rate_limit
 
         self.devices = {}
         self.last_packet = time.time()
@@ -238,7 +242,7 @@ class BLEScanner():
 
             # check if this packet should actually be sent to GATD. Rate limit
             #   to one per second
-            if int(dev['timestamp']) >= int(current_time):
+            if self.rate_limit and int(dev['timestamp']) >= int(current_time):
                 continue
             dev['timestamp'] = current_time
 
