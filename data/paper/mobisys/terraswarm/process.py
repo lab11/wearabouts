@@ -8,8 +8,9 @@ import math
 import dataprint
 
 # parameters
-num_hours = 8
+num_hours = 27
 num_heros = 74
+start_unix_time = 1414602000000
 
 # get input file
 infile = 'terraswarm_presenceData'
@@ -20,7 +21,7 @@ print("parsing file")
 locations = {}
 heros = {}
 init_pkt = True
-start_time = 0
+start_time = start_unix_time
 pkt_index = 0
 with open(infile) as f:
     for line in f:
@@ -33,7 +34,7 @@ with open(infile) as f:
 
         if init_pkt:
             init_pkt = False
-            start_time = pkt['time']
+            #start_time = pkt['time']
 
         uniqname = pkt['uniqname']
         time = (pkt['time'] - start_time)
@@ -47,6 +48,10 @@ with open(infile) as f:
         data_tuple = (time, location_id)
         if uniqname not in heros:
             heros[uniqname] = []
+        else:
+            # don't add redundant data points
+            if heros[uniqname][-1][1] == location_id:
+                continue
         heros[uniqname].append(data_tuple)
 
         # only keep going until two days are complete
@@ -64,10 +69,21 @@ for location_id in locations:
     else:
         loc_color[location_id] = colors[int(location_id)]
 
+# create tics command
+tics = '('
+for hour in range(num_hours):
+    time = '"' + str((hour+11)%12) + ':00" '
+    if time == '"0:00" ':
+        time = '"12:00" '
+    loc = str(hour*3600*1000)
+    tics += time + loc + ', '
+
+tics = tics[0:-2] + ')'
+
 # open gnuplot file and create initial commands
 print("generating gnuplot file")
 f = open('terraswarm_graph.gnuplot', 'w')
-initial_commands = '''set terminal postscript enhanced eps color font "Helvetica,14" size 16in,8in
+initial_commands = '''set terminal postscript enhanced eps color font "Helvetica,14" size 10.5in,8in
 set output "terraswarm_graph.eps"
 
 set style line 1 lt 1  ps 1.5 pt 7 lw 5 lc rgb "#d7191c"
@@ -83,7 +99,7 @@ f.write(initial_commands)
 f.write('set xlabel "Time (s)"\n')
 #f.write('set xdata time\n')
 #f.write('set timefmt "%H"\n')
-f.write('set xtics 3600000 nomirror\n')
+f.write('set xtics 3600000 nomirror' + str(tics) + '\n')
 f.write('set xrange [' + str(0) + ':' + str(num_hours*3600*1000) + ']\n\n')
 
 f.write('set ylabel "Tag ID"\n')
@@ -91,6 +107,7 @@ f.write('set ytics nomirror\n')
 f.write('set yrange [0:' + str(num_heros+1) + ']\n')
 
 f.write('unset key\n')
+f.write('\n\n')
 
 
 # create gnuplot commands for each id
@@ -105,7 +122,7 @@ for uniqname in sorted(heros.keys()):
     for data in heros[uniqname][1:]:
         command = "set object rect from "
         command += str(prev_data[0]) + ',' + str(index-offset) + ' to ' + str(data[0]) + ',' + str(index+offset)
-        command += " fc rgb " + str(loc_color[data[1]]) + " fs noborder"
+        command += " fc rgb " + str(loc_color[prev_data[1]]) + " fs noborder"
         command += "\n"
         f.write(command)
 
