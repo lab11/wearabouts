@@ -72,7 +72,7 @@ for location_id in locations:
 # create tics command
 tics = '('
 for hour in range(num_hours):
-    time = '"' + str((hour+11)%12) + ':00" '
+    time = '"' + str((hour+10)%12) + ':00" '
     if time == '"0:00" ':
         time = '"12:00" '
     loc = str(hour*3600*1000)
