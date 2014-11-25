@@ -1,5 +1,0 @@
-A2PING_OPTS = --gsextra "-dPDFSETTINGS=/prepress -dSubsetFonts=true -dAutoRotatePages=/None -dEmbedAllFonts=true"
-
-preload support
-run $(TUP_CWD)/support/tup_gen_figs.py $(TUP_CWD)
-
