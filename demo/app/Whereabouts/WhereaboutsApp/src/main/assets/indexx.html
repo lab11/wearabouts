@@ -1,13 +1,13 @@
 <html>
   <head>
-    <script src="http://inductor.eecs.umich.edu/bower_components/socket.io-client/dist/socket.io.min.js"></script>
-    <script src="http://inductor.eecs.umich.edu/bower_components/jquery/dist/jquery.min.js"></script>
+    <script src="http://gatd.eecs.umich.edu/bower_components/socket.io-client/dist/socket.io.min.js"></script>
+    <script src="http://gatd.eecs.umich.edu/bower_components/jquery/dist/jquery.min.js"></script>
   </head>
   <body style="background:#aaa">
     <div></div>
     <script>
     onload = function() {
-      socket = io.connect('inductor.eecs.umich.edu:8082/stream');
+      socket = io.connect('gatd.eecs.umich.edu:8082/stream');
       console.log("HEYY");
       socket.on('connect', function (data) { socket.emit('query', {'profile_id':'hsYQx8blbd','time': 30*60*1000 } ); });
       socket.on('data', function (data) { 

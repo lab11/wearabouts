@@ -24,8 +24,8 @@
 
 
     </style>
-    <script src="http://inductor.eecs.umich.edu/bower_components/socket.io-client/dist/socket.io.min.js"></script>
-    <script src="http://inductor.eecs.umich.edu/bower_components/jquery/dist/jquery.min.js"></script>
+    <script src="http://gatd.eecs.umich.edu/bower_components/socket.io-client/dist/socket.io.min.js"></script>
+    <script src="http://gatd.eecs.umich.edu/bower_components/jquery/dist/jquery.min.js"></script>
 </head>
 <body>
     <div id="map" class="ovw">
@@ -46,7 +46,7 @@
 
         var gatd_socket;
         onload = function() {
-            gatd_socket = io.connect('inductor.eecs.umich.edu:8082/stream');
+            gatd_socket = io.connect('gatd.eecs.umich.edu:8082/stream');
             gatd_socket.on('connect', function(data) {
                 gatd_socket.emit('query', {'profile_id': '62MTxDGPhJ','time':10*60*1000});
             });

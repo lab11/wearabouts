@@ -55,8 +55,8 @@ UNIQUE_COUNT = 0
 START_TIME = time.time()
 
 BLEADDR_PROFILE_ID = 'ySYH83QLG2'
-BLEADDR_EXPLORE_ADDR = 'http://inductor.eecs.umich.edu:8085/explore/profile/' + BLEADDR_PROFILE_ID
-BLEADDR_POST_ADDR = 'http://inductor.eecs.umich.edu:8081/' + BLEADDR_PROFILE_ID
+BLEADDR_EXPLORE_ADDR = 'http://gatd.eecs.umich.edu:8085/explore/profile/' + BLEADDR_PROFILE_ID
+BLEADDR_POST_ADDR = 'http://gatd.eecs.umich.edu:8081/' + BLEADDR_PROFILE_ID
 
 KNOWN_DEVICES = {
         'ec:84:04:f4:4a:07': 'Neal Jackson',
