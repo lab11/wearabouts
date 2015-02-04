@@ -81,7 +81,8 @@ KNOWN_DEVICES = {
         'e0:5e:5a:28:85:e3': 'Thomas Zachariah',
         'ca:28:2b:08:f3:f7': 'Josh Adkins',
         'ef:b1:85:b1:37:d4': 'Taped Nordic Tag',
-        'e8:2c:76:b7:f7:8f': "Noah's Nordic Tag"
+        'e8:2c:76:b7:f7:8f': "Noah's Nordic Tag",
+        '70:ee:50:05:27:24': 'June UV'
         }
 
 def main():
@@ -211,7 +212,7 @@ class BLEScanner():
             if packet_data == None:
                 continue
 
-            [ble_addr, rssi, name] = packet_data
+            [ble_addr, rssi, name, payload] = packet_data
 
             # create device if necessary
             if ble_addr not in self.devices:
@@ -254,7 +255,7 @@ class BLEScanner():
                     sys.exit(1)
 
                 # push data to thread to be posted
-                self.msg_queue.put([ble_addr, dev])
+                self.msg_queue.put([ble_addr, dev, payload])
 
             # update screen
             self.update_screen()
@@ -355,8 +356,10 @@ class BLEScanner():
             rssi = packet.RSSI
             # remove silly quotation marks
             name = packet.blePacket.name[1:-1]
+            # add in advertisement payload
+            payload = packet.blePacket.payload
 
-            return [ble_addr, rssi, name]
+            return [ble_addr, rssi, name, payload]
         else:
             return None
 
@@ -378,14 +381,15 @@ class GATDPoster(Thread):
 
         while True:
             # look for a packet
-            [ble_addr, dev] = self.msg_queue.get()
+            [ble_addr, dev, payload] = self.msg_queue.get()
             data = {
                     'location_str': LOCATION,
                     'ble_addr': ble_addr,
                     'rssi': dev['rssi']['newest'],
                     'avg_rssi': dev['rssi']['average'],
                     'name': dev['name'],
-                    'scanner_macAddr': MAC_ADDRESS
+                    'scanner_macAddr': MAC_ADDRESS,
+                    'payload': payload
                     }
 
             # post to GATD
