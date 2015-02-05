@@ -39,7 +39,8 @@ MACADDR_POST_ADDR = 'http://gatd.eecs.umich.edu:8081/PGMR22B9wP'
 
 KNOWN_DEVICES = {
         '28:cf:da:db:e9:98': 'Branden Laptop',
-        '90:21:55:78:f9:c9': 'Branden Smartphone',
+        '90:21:55:78:f9:c9': 'Branden Old Smartphone',
+        '90:68:c3:c1:af:6e': 'Branden Smartphone',
         'bc:ee:7b:4a:57:78': 'Neal Laptop',
         '8c:3a:e3:5d:2f:64': 'Neal Smartphone',
         '00:26:bb:07:2b:35': 'Thomas Laptop',
@@ -92,7 +93,9 @@ KNOWN_DEVICES = {
         '24:77:03:83:73:c4': 'Josh Laptop',
         '40:0e:85:4b:cc:f9': 'Genevieve Smartphone',
         '68:94:23:90:97:c9': 'Genevieve Laptop',
-        '54:26:96:2a:10:38': 'Ye-Sheng Smartphone'
+        '54:26:96:2a:10:38': 'Ye-Sheng Smartphone',
+        '14:30:c6:75:ef:c0': 'John Smartphone',
+        'f0:d1:a9:5a:e2:a3': 'Ariana Mirian'
         }
 
 def main():
@@ -107,7 +110,7 @@ def main():
     try:
         scan_locations = get_scan_locations()
     except urllib2.URLError:
-        print("Connection to inductor unavailable. Running in test mode")
+        print("Connection to gatd unavailable. Running in test mode")
         LOCATION = 'test'
     else:
         # get location
@@ -164,7 +167,8 @@ def main():
         scanner.sniff()
 
         # wait until all packets have been handled before continuing
-        msg_queue.join()
+        if post_to_gatd:
+            msg_queue.join()
 
 
 class MACScanner():
