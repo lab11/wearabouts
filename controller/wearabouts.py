@@ -25,8 +25,8 @@ WEARABOUTS_PROFILE_ID = '62MTxDGPhJ'
 DOOR_PROFILE_ID = 'U8H29zqH0i'
 MACADDR_PROFILE_ID = 'PGMR22B9wP'
 
-BLEADDR_EXPLORE_ADDR = 'http://inductor.eecs.umich.edu:8085/explore/profile/' + BLEADDR_PROFILE_ID
-WEARABOUTS_POST_ADDR = 'http://inductor.eecs.umich.edu:8081/' + WEARABOUTS_PROFILE_ID
+BLEADDR_EXPLORE_ADDR = 'http://gatd.eecs.umich.edu:8085/explore/profile/' + BLEADDR_PROFILE_ID
+WEARABOUTS_POST_ADDR = 'http://gatd.eecs.umich.edu:8081/' + WEARABOUTS_PROFILE_ID
 
 def main( ):
 
@@ -460,7 +460,7 @@ class PresenceController ():
 
 
 class ReceiverThread (Thread):
-    SOCKETIO_HOST = 'inductor.eecs.umich.edu'
+    SOCKETIO_HOST = 'gatd.eecs.umich.edu'
     SOCKETIO_PORT = 8082
     SOCKETIO_NAMESPACE = 'stream'
 

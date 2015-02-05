@@ -255,8 +255,8 @@ public class FragmentActivity extends Activity implements ActionBar.TabListener 
     }
 
     public void getJSON() {
-//        new RetrieveJSON().execute("http://inductor.eecs.umich.edu:8085/explore/profile/dwgY2s6mEu");
-        new RetrieveJSON().execute("http://inductor.eecs.umich.edu:8085/explore/profile/ySYH83QLG2");
+//        new RetrieveJSON().execute("http://gatd.eecs.umich.edu:8085/explore/profile/dwgY2s6mEu");
+        new RetrieveJSON().execute("http://gatd.eecs.umich.edu:8085/explore/profile/ySYH83QLG2");
     }
 
     @Override

@@ -486,7 +486,7 @@ if (testing) {
 
 } else {
     onload = function() { 
-        gatd_socket = io.connect('inductor.eecs.umich.edu:8082/stream');
+        gatd_socket = io.connect('gatd.eecs.umich.edu:8082/stream');
         gatd_socket.on('connect', function(data) {
             // query starting immediately
             gatd_socket.emit('query', {'profile_id': '62MTxDGPhJ'});

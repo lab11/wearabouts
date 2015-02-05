@@ -41,8 +41,8 @@ except ImportError:
 import logging
 logging.basicConfig()
 
-DOOR_GET_ADDR = 'http://inductor.eecs.umich.edu:8085/explore/profile/U8H29zqH0i'
-FITBIT_POST_ADDR = 'http://inductor.eecs.umich.edu:8081/dwgY2s6mEu'
+DOOR_GET_ADDR = 'http://gatd.eecs.umich.edu:8085/explore/profile/U8H29zqH0i'
+FITBIT_POST_ADDR = 'http://gatd.eecs.umich.edu:8081/dwgY2s6mEu'
 
 LOCATION = ""
 query = {'profile_id': 'U8H29zqH0i',
@@ -72,7 +72,7 @@ def main():
     global stream_namespace
     global usage
 
-    SOCKETIO_HOST      = 'inductor.eecs.umich.edu'
+    SOCKETIO_HOST      = 'gatd.eecs.umich.edu'
     SOCKETIO_PORT      = 8082
     SOCKETIO_NAMESPACE = 'stream'
 

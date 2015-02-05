@@ -34,8 +34,8 @@ Locations should be specified in the format:
 The following locations have been seen historically:"""
 
 LOCATION = "" # set as a input argument
-MACADDR_GET_ADDR = 'http://inductor.eecs.umich.edu:8085/explore/profile/PGMR22B9wP'
-MACADDR_POST_ADDR = 'http://inductor.eecs.umich.edu:8081/PGMR22B9wP'
+MACADDR_GET_ADDR = 'http://gatd.eecs.umich.edu:8085/explore/profile/PGMR22B9wP'
+MACADDR_POST_ADDR = 'http://gatd.eecs.umich.edu:8081/PGMR22B9wP'
 
 KNOWN_DEVICES = {
         '28:cf:da:db:e9:98': 'Branden Laptop',

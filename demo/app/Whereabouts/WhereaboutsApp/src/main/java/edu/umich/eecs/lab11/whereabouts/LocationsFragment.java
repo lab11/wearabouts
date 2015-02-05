@@ -76,7 +76,7 @@ public class LocationsFragment extends Fragment {
 //        ExpAdapter = new ExpandListAdapter(fa, ExpListItems);
 //        ExpandList.setAdapter(ExpAdapter);
 //        ExpandList.setEmptyView(v.findViewById(android.R.id.empty));
-//        myWebView.loadUrl("http://inductor.eecs.umich.edu/whereabouts.html");
+//        myWebView.loadUrl("http://gatd.eecs.umich.edu/whereabouts.html");
         myWebView.loadUrl("file:///android_asset/index.html");
 //        myWebView.loadUrl("javascript:socket.emit('query', {'profile_id':'hsYQx8blbd','time': 120*60*1000 } );");
         return (LinearLayout) v;
