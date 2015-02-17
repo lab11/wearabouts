@@ -28,10 +28,10 @@ Locations should be specified in the format:
 
 Fitbits are monitored in the following locations:"""
 
-FITBIT_GET_ADDR = 'http://inductor.eecs.umich.edu:8085/explore/profile/dwgY2s6mEu'
-PRESENCE_POST_ADDR = 'http://inductor.eecs.umich.edu:8081/hsYQx8blbd'
+FITBIT_GET_ADDR = 'http://gatd.eecs.umich.edu:8085/explore/profile/dwgY2s6mEu'
+PRESENCE_POST_ADDR = 'http://gatd.eecs.umich.edu:8081/hsYQx8blbd'
 
-SOCKETIO_HOST      = 'inductor.eecs.umich.edu'
+SOCKETIO_HOST      = 'gatd.eecs.umich.edu'
 SOCKETIO_PORT      = 8082
 SOCKETIO_NAMESPACE = 'stream'
 

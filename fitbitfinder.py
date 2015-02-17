@@ -41,8 +41,8 @@ except ImportError:
 import logging
 logging.basicConfig()
 
-DOOR_GET_ADDR = 'http://inductor.eecs.umich.edu:8085/explore/profile/U8H29zqH0i'
-FITBIT_POST_ADDR = 'http://inductor.eecs.umich.edu:8081/dwgY2s6mEu'
+DOOR_GET_ADDR = 'http://gatd.eecs.umich.edu:8085/explore/profile/U8H29zqH0i'
+FITBIT_POST_ADDR = 'http://gatd.eecs.umich.edu:8081/dwgY2s6mEu'
 
 LOCATION = ""
 query = {'profile_id': 'U8H29zqH0i',
@@ -72,18 +72,19 @@ def main():
     global stream_namespace
     global usage
 
-    SOCKETIO_HOST      = 'inductor.eecs.umich.edu'
+    SOCKETIO_HOST      = 'gatd.eecs.umich.edu'
     SOCKETIO_PORT      = 8082
     SOCKETIO_NAMESPACE = 'stream'
 
     LOCATION = "" #Get this as a system argument
     DOOR_TRIGGERED = False #Get this as a system argument
 
-    try:
-        door_sensors = get_door_locations()
-    except urllib2.URLError:
-        print("Connection to inductor unavailable. Running in test mode")
-        LOCATION = 'test'
+    door_sensors = ['University of Michigan|BBB|4908']
+    #try:
+    #    door_sensors = get_door_locations()
+    #except urllib2.URLError:
+    #    print("Connection to gatd unavailable. Running in test mode")
+    #    LOCATION = 'test'
 
     # get location
     if not LOCATION:
