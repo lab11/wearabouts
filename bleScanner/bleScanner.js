@@ -37,17 +37,30 @@ rmq.on('ready', function () {
 				});
 
 				noble.on('discover', function (peripheral) {
-					console.log('peripheral discovered (' + peripheral.uuid+ '):');
+					manufac_data = '';
+
+
+					console.log('peripheral discovered (' + peripheral.uuid.match(/../g).join(':') + '):');
 					console.log('\thello my local name is:');
 					console.log('\t\t' + peripheral.advertisement.localName);
 					console.log('\tcan I interest you in any of the following advertised services:');
 					console.log('\t\t' + JSON.stringify(peripheral.advertisement.serviceUuids));
+					console.log('\t\t' + peripheral.rssi);
 
-					blob = {
-						name: peripheral.advertisement.localName,
+					if (peripheral.advertisement.manufacturerData) {
+						manufac_data = peripheral.advertisement.manufacturerData.toString('hex');
 					}
 
-					xch.publish('scanner.bleScanner.'+mac_address, blob);
+					blob = {
+						ble_addr: peripheral.uuid.match(/../g).join(':'),
+						name: peripheral.advertisement.localName,
+						scanner_macAddr: mac_address.toUpperCase(),
+						service_uuids: peripheral.advertisement.serviceUuids,
+						manufacturer_data: manufac_data,
+						rssi: peripheral.rssi,
+					}
+
+					xch.publish('scanner.bleScanner.'+mac_address.toUpperCase(), blob);
 				});
 			}
 

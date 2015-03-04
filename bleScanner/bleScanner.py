@@ -35,6 +35,13 @@ except ImportError:
     print('sudo pip install socketIO-client')
     sys.exit(1)
 
+try:
+    import pika
+except ImportError:
+    print('Could not import the pika library.')
+    print('sudo pip install pika')
+    sys.exit(1)
+
 USAGE ="""
 Scans for bluetooth low-energy devices
 
@@ -49,6 +56,7 @@ The following locations have been seen historically:"""
 LOCATION = ""
 
 LOCAL_FILE = ""
+USE_RABBITMQ = True
 
 PACKET_COUNT = 0
 UNIQUE_COUNT = 0
@@ -138,7 +146,7 @@ def main():
     handler = logging.handlers.TimedRotatingFileHandler(log_filename,
             when='midnight', backupCount=7)
     log.addHandler(handler)
-    
+
     # print location to user
     if LOCATION == 'test':
         print('Running test scans...')
@@ -156,6 +164,9 @@ def main():
         if LOCAL_FILE:
             post_thread = LocalPoster(msg_queue, log=log)
             rate_limit = False
+        elif USE_RABBITMQ:
+            post_thread = RabbitMQPoster(msg_queue, log=log)
+            rate_limit = True
         else:
             post_thread = GATDPoster(msg_queue, log=log)
             rate_limit = True
@@ -444,7 +455,7 @@ class LocalPoster(Thread):
 
         while True:
             # look for a packet
-            [ble_addr, dev] = self.msg_queue.get()
+            [ble_addr, dev, payload] = self.msg_queue.get()
             data = {
                     'time': dev['timestamp'],
                     'location_str': LOCATION,
@@ -457,6 +468,54 @@ class LocalPoster(Thread):
 
             # write to file
             self.f.write(str(json.dumps(data)) + "\n")
+
+            self.msg_queue.task_done()
+
+class RabbitMQPoster(Thread):
+    def __init__(self, queue, log=None):
+
+        # init thread
+        super(RabbitMQPoster, self).__init__()
+        self.daemon = True
+
+        # init data
+        self.msg_queue = queue
+        self.log = log
+
+        # autostart thread
+        self.start()
+
+    def run(self):
+        import config
+
+        # Get a blocking connection to the rabbitmq
+        self.amqp_conn = pika.BlockingConnection(
+                pika.ConnectionParameters(
+                    host=config.rabbitmq['host'],
+                    virtual_host=config.rabbitmq['vhost'],
+                    credentials=pika.PlainCredentials(
+                        config.rabbitmq['login'],
+                        config.rabbitmq['password']))
+            )
+        self.amqp_chan = self.amqp_conn.channel()
+
+        while True:
+            # look for a packet
+            [ble_addr, dev, payload] = self.msg_queue.get()
+            data = {
+                    'time': dev['timestamp'],
+                    'location_str': LOCATION,
+                    'ble_addr': ble_addr,
+                    'rssi': dev['rssi']['newest'],
+                    'avg_rssi': dev['rssi']['average'],
+                    'name': dev['name'],
+                    'scanner_macAddr': MAC_ADDRESS,
+                    'payload': payload
+                    }
+
+            self.amqp_chan.basic_publish(exchange=config.rabbitmq['exchange'],
+                                body=json.dumps(data),
+                                routing_key='scanner.bleScanner.'+MAC_ADDRESS)
 
             self.msg_queue.task_done()
 
