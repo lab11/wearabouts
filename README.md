@@ -81,9 +81,7 @@ between applications.
         http://host:15672
 
     Add a new vhost, a user for that vhost, and add the admin user to the
-    vhost. Finally, we need two exchanges,
-    one for the scanner data and one for the output of Wearabouts. Add
-    two direct exchanges: scans and events.
+    vhost. Finally, we need to add a topic exchange to the vhost.
 
 
 2. A central Wearabouts instance that is making determinations about where
@@ -91,4 +89,12 @@ people are.
 
 3. Many BLE (and other) scanner applications that are looking for packets
 from devices.
+
+    For the node.js based scanner:
+
+        sudo apt-get install bluetooth bluez-utils libbluetooth-dev
+        cd bleScanner
+        npm install amqp noble getmac
+        sudo node NOBLE_REPORT_ALL_HCI_EVENTS=1 bleScanner.js
+
 
