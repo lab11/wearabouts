@@ -72,7 +72,7 @@ KNOWN_DEVICES = {
         'f4:bb:3c:af:99:6c': 'Ben Kempke',
         'db:eb:52:c7:90:74': 'Sam DeBruin',
         'f7:fd:9a:80:91:79': 'Genevieve Flaspohler',
-        'cb:14:57:58:b4:89': 'Charlie Welch',
+        'dc:fa:65:c7:cd:34': 'Charlie Welch',
         'de:da:9c:f1:75:94': 'David Adrian',
         'cd:49:fa:6a:98:b1': 'Spare Blue Force',
         'ee:47:fa:fe:ac:c2': 'Eva Robert',
@@ -133,7 +133,7 @@ def main():
 
     # setup logging
     log = logging.getLogger('bleScanner_log')
-    log.setLevel(logging.ERROR)
+    log.setLevel(logging.DEBUG)
     log_filename = '../logs/bleScanner_log_' + str(LOCATION.split('|')[-1]) + '.out'
     handler = logging.handlers.TimedRotatingFileHandler(log_filename,
             when='midnight', backupCount=7)
@@ -171,17 +171,19 @@ def main():
 
 class BLEScanner():
 
-    def __init__(self, log, queue=None, thread=None, sample_window=10, rate_limit=True):
+    def __init__(self, log, queue=None, thread=None, sample_window=10, rate_limit=True, device_lifetime=12*60*60):
         self.msg_queue = queue
         self.thread = thread
         self.log = log
         self.sample_window = sample_window
         self.rate_limit = rate_limit
+        self.device_lifetime = device_lifetime
 
         self.devices = {}
         self.last_packet = time.time()
         self.last_update = 0
         self.last_join = time.time()
+        self.last_clean = time.time()
 
         # find nrf51822 dongle
         self.port = self.find_port()
@@ -260,10 +262,21 @@ class BLEScanner():
             # update screen
             self.update_screen()
 
+            # remove devices that haven't been seen in a while
+            if ((current_time - self.last_clean) > self.device_lifetime):
+                self.last_clean = current_time
+                self.clean_devices()
+
             # wait on the darn GATD poster to catch up to real time
             if ((current_time - self.last_join) > 10):
                 self.last_join = current_time
                 self.msg_queue.join()
+
+    def clean_devices(self):
+        self.log.info(curr_datetime() + "INFO - Clean device list")
+        for ble_addr in self.devices.keys():
+            if (time.time() - self.devices[ble_addr]['timestamp']) > self.device_lifetime:
+                del self.devices[ble_addr]
 
     def update_screen(self):
         global KNOWN_DEVICES

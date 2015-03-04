@@ -31,14 +31,14 @@ WEARABOUTS_POST_ADDR = 'http://gatd.eecs.umich.edu:8081/' + WEARABOUTS_PROFILE_I
 def main( ):
 
     # setup logging
-    log = logging.getLogger('whereabouts_log')
+    log = logging.getLogger('wearabouts_log')
     log.setLevel(logging.DEBUG)
     log_filename = '../logs/weareabouts_log.out'
     handler = logging.handlers.TimedRotatingFileHandler(log_filename,
             when='midnight', backupCount=7)
     log.addHandler(handler)
-    log.info("Running whereabouts controller...")
-    print("Running whereabouts controller...")
+    log.info("Running wearabouts controller...")
+    print("Running wearabouts controller...")
 
     # start threads to receive data from GATD
     message_queue = Queue.Queue()
@@ -90,6 +90,9 @@ class PresenceController ():
     # difference in BLE causing a room switch
     BLE_SWITCH_POINT = 10
 
+    # how long to maintain a person with no further information
+    PRESENCE_LIFETIME = 12*60*60
+
     def __init__(self, queue, post_address, log):
         self.msg_queue = queue
         self.log = log
@@ -121,6 +124,10 @@ class PresenceController ():
             if ((time.time() - self.last_locate_time) > self.LOCATE_PERIOD):
                 self.locate_everyone()
 
+            # append fields to packet
+            #   this may duplicate the GATD formatter if it is being used
+            pkt = self.apply_mappings(pkt)
+
             # check data for validity
             if (pkt == None or 'location_str' not in pkt or 'time' not in pkt or
                     'uniqname' not in pkt or 'location_id' not in pkt):
@@ -144,6 +151,7 @@ class PresenceController ():
                         'location_id': -1,
                         'present_since': 0,
                         'last_seen': 0,
+                        'last_packet_time': 0,
                         'confidence': 0,
                         'location_data': {}}
                 self.last_gatd_post[uniqname] = 0
@@ -158,6 +166,7 @@ class PresenceController ():
                         'potentially_present': False,
                         'present_by': 'None'}
             evidence = person['location_data'][location]
+            person['last_packet_time'] = time.time()
 
             # handle bleAddr data
             if data_type == 'bleAddr':
@@ -178,9 +187,7 @@ class PresenceController ():
                 timestamp = int(round(pkt['time']/1000))
                 if timestamp > evidence['bleAddr']['time']:
                     evidence['bleAddr']['time'] = timestamp
-                    #XXX: think about fixing me maybe
-                    #evidence['bleAddr']['rssi'] = pkt['avg_rssi']
-                    evidence['bleAddr']['rssi'] = pkt['rssi']
+                    evidence['bleAddr']['rssi'] = pkt['avg_rssi']
                     evidence['bleAddr']['address'] = pkt['ble_addr']
 
                 # locate the user based on this new information. Only relocate
@@ -191,7 +198,6 @@ class PresenceController ():
                 #   keeping the user in the same location). But, we are
                 #   re-running locate_everyone() pretty often anyways, so this
                 #   is really just here as a heuristic to speed up locating
-                #XXX: This could be pulled out for the demo
                 if (self.determine_presence(uniqname, location) !=
                         self.in_location(uniqname, location)):
                     self.locate_person(uniqname)
@@ -243,6 +249,55 @@ class PresenceController ():
             #    if pkt['type'] == 'door_open':
             #        for 
 
+    scanner_mapping = {
+            '00:0C:29:CB:0A:60': ('University of Michigan|BBB|4908', '0'),
+            '78:A5:04:DC:83:7C': ('University of Michigan|BBB|4901', '1'),
+            'D0:39:72:4B:AD:14': ('University of Michigan|BBB|4670', '2')
+            }
+
+    people_mapping = {
+            'ec:84:04:f4:4a:07': ('nealjack', 'Neal Jackson'),
+            'e2:a7:7f:78:34:24': ('jhalderm', 'Alex Halderman'),
+            'f9:97:1e:8b:e7:27': ('brghena', 'Branden Ghena'),
+            'ee:b7:8c:0d:8d:4d': ('bradjc', 'Brad Campbell'),
+            'e8:74:72:8f:e4:57': ('wwhuang', 'William Huang'),
+            'ca:a3:bb:ea:94:5b': ('mclarkk', 'Meghan Clark'),
+            'd1:c6:df:67:1c:60': ('rohitram', 'Rohit Ramesh'),
+            'f0:76:0f:09:b8:63': ('nklugman', 'Noah Klugman'),
+            'ec:6d:04:74:fa:69': ('yhguo', 'Yihua Guo'),
+            'f4:bb:3c:af:99:6c': ('bpkempke', 'Ben Kempke'),
+            'db:eb:52:c7:90:74': ('sdebruin', 'Sam DeBruin'),
+            'f7:fd:9a:80:91:79': ('genevee', 'Genevieve Flaspohler'),
+            'dc:fa:65:c7:cd:34': ('cfwelch', 'Charlie Welch'),
+            'de:da:9c:f1:75:94': ('davadria', 'David Adrian'),
+            'cd:49:fa:6a:98:b1': ('None', 'Spare Blue Force'),
+            'ca:2d:39:50:f0:b1': ('ppannuto', 'Pat Pannuto'),
+            'ee:47:fa:fe:ac:c2': ('evrobert', 'Eva Robert'),
+            'c4:26:da:a4:72:c3': ('samkuo', 'Ye-Sheng Kuo'),
+            'f1:7c:98:6e:b9:d1': ('jdejong', 'Jessica De Jong'),
+            'e0:5e:5a:28:85:e3': ('tzachari', 'Thomas Zachariah'),
+            'ca:28:2b:08:f3:f7': ('adkinsjd', 'Josh Adkins')
+            }
+
+    def apply_mappings(self, pkt):
+        # location parsing
+        if 'location_str' in pkt and pkt['location_str'] == 'demo' or pkt['location_str'] == 'unknown':
+            # find the location string
+            if 'scanner_macAddr' in pkt and pkt['scanner_macAddr'] in self.scanner_mapping:
+                pkt['location_str'] = self.scanner_mapping[pkt['scanner_macAddr']][0]
+                pkt['location_id'] = self.scanner_mapping[pkt['scanner_macAddr']][1]
+            else:
+                pkt['location_str'] = 'unknown'
+                pkt['location_id'] = -1
+
+        # add people identities
+        if 'ble_addr' in pkt and pkt['ble_addr'] in self.people_mapping:
+            pkt['uniqname'] = self.people_mapping[pkt['ble_addr']][0]
+            pkt['full_name'] = self.people_mapping[pkt['ble_addr']][1]
+
+        # return updated packet
+        return pkt
+
     def update_screen(self):
         SCREEN_LINES = 58
 
@@ -282,7 +337,7 @@ class PresenceController ():
                 ('\t' if len(person['full_name']) > 9 else '\t\t') + \
                 "Loc: " + str(location.split('|')[-1]) + \
                 "\tRSSI: " + str(rssi) + \
-                "\tAgo: " + str(int(round(time.time() - person['last_seen'])))
+                "\tAgo: " + str(int(round(time.time() - person['last_packet_time'])))
 
         print(print_str)
 
@@ -313,8 +368,30 @@ class PresenceController ():
     # some function to go through each person and figure out where they are
     def locate_everyone(self):
         self.last_locate_time = time.time()
-        for uniqname in self.presences:
-            self.locate_person(uniqname)
+        locs = {}
+        for uniqname in self.presences.keys():
+            # also posts data to GATD for that uniqname
+            loc = self.locate_person(uniqname)
+
+            if loc == 'None':
+                continue
+
+            if loc not in locs:
+                locs[loc] = {}
+                locs[loc]['location_str'] = loc
+                locs[loc]['person_list'] = []
+                locs[loc]['since_list'] = []
+
+            locs[loc]['person_list'].append(uniqname)
+            if uniqname in self.presences:
+                locs[loc]['since_list'].append(self.presences[uniqname]['present_since'])
+            else:
+                self.log.error(curr_datetime() + "ERROR - Someone deleted when in a valid location? " + str(uniqname))
+                locs[loc]['since_list'].append(time.time())
+
+        # post each location to GATD in addtion to each individual
+        for loc in locs:
+            post_to_gatd(locs[loc], self.post_address, self.log)
 
     # some function to go through each location in a person and figure out where they are
     #   also posts to GATD if there is a change
@@ -331,6 +408,10 @@ class PresenceController ():
             # check if the person is nowhere
             if (len(possible_locations) == 0):
                 self.set_location(uniqname, 'None', 0.9)
+                # remove the person from presences if not seen in a while
+                if (time.time() - person['last_packet_time']) > self.PRESENCE_LIFETIME:
+                    self.log.info(curr_datetime() + "INFO - Deleted " + uniqname)
+                    del self.presences[uniqname]
                 return 'None'
 
             # try choosing the best based on BLE
@@ -397,13 +478,13 @@ class PresenceController ():
         if location != 'None':
             present_by = person['location_data'][location]['present_by']
 
-        post_data = False
-        if ((curr_time-self.last_gatd_post[uniqname]) > 20):
-            post_data = True
-            self.last_gatd_post[uniqname] = curr_time
+        # this could be rate-limited
+        post_data = True
+        #post_data = False
+        #if ((curr_time-self.last_gatd_post[uniqname]) > 20):
+        #    post_data = True
+        #    self.last_gatd_post[uniqname] = curr_time
 
-        #XXX: if there is too much data, this could be limited to location
-        #   changes only, rather than on any update
         # post to GATD
         if post_data:
             data = {'uniqname': uniqname,

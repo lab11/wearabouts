@@ -1,4 +1,4 @@
-whereabouts
+wearabouts
 ===========
 
 Semantic heuristic localization
@@ -35,7 +35,7 @@ data is stored to and pulled from [GATD](https://github.com/lab11/gatd)
     `sudo ./macScanner.py`
 
 
-## Whereabouts Installation steps
+## Weareabouts Installation steps
 1. Create a virtual environment
     `sudo pip install virtualenv`
     `virtualenv venv`
@@ -49,7 +49,7 @@ data is stored to and pulled from [GATD](https://github.com/lab11/gatd)
 4. Replace init file from socketIO-client
     `cp socketIO_client__init__.py venv/lib/python2.7/site-packages/socketIO_client/__init__.py`
 
-5. Run whereabouts
+5. Run wearabouts
     `./whereabouts.py`
 
 
