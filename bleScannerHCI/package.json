@@ -1,0 +1,17 @@
+{
+  "name": "bleScanner",
+  "version": "1.0.0",
+  "description": "Scan for BLE advertisements.",
+  "main": "bleScanner.js",
+  "dependencies": {
+    "amqp": "~0.2.3",
+    "getmac": "~1.0.6",
+    "noble": "~0.3.9"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Brad Campbell",
+  "license": "BSD-2-Clause"
+}

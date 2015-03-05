@@ -4,3 +4,8 @@ venv/
 whereabouts_log*
 macScanner_log*
 usbreset
+/Dockerfile
+node_modules
+config.py
+config.js
+config.json

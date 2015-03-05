@@ -1,4 +1,4 @@
-exec: ./bleScanner.py --rabbit
+exec: sudo NOBLE_REPORT_ALL_HCI_EVENTS=1 node bleScanner.js
 data_sources:
   - environment_json
   - file

@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 /*
  * This scanner uses a typical BLE dongle to scan for advertisement packets.
  */
@@ -13,24 +15,23 @@ var getmac = require('getmac');
 var noble = require('noble');
 
 
+// Connect to the RabbitMQ instance that will be receiving all of our
+// found packets.
 var rmq = amqp.createConnection(config.rabbitmq);
-
-console.log('start')
-
 rmq.on('ready', function () {
-	console.log('connected to rabbitmq server');
 
-	// xch = rmq.exchange(config.rabbitmq.exchange);
-	rmq.exchange('wearabouts', {'durable': true, 'autoDelete': false}, function (xch) {
-		console.log('Connected to exchange');
+	// Need to connect to the correct exchange in order to publish packets
+	rmq.exchange(config.rabbitmq.exchange, {'durable': true, 'autoDelete': false}, function (xch) {
 
+		// Use our MAC address as a source identifier for this scanner
 		getmac.getMac(function (err, mac_address) {
 			if (err) {
 				console.log('Could not get MAC address.');
 				console.log(err);
 			} else {
-				console.log(mac_address);
+				console.log('Found mac address: ' + mac_address);
 
+				// Actually start receiving BLE advertisements
 				noble.on('stateChange', function (state) {
 					console.log(state);
 					if (state === 'poweredOn') {
@@ -42,10 +43,7 @@ rmq.on('ready', function () {
 					manufac_data = '';
 
 					console.log('peripheral discovered (' + peripheral.uuid.match(/../g).join(':') + '):');
-					console.log('\thello my local name is:');
-					console.log('\t\t' + peripheral.advertisement.localName);
-					console.log('\tcan I interest you in any of the following advertised services:');
-					console.log('\t\t' + JSON.stringify(peripheral.advertisement.serviceUuids));
+					console.log('\thello my local name is: ' + peripheral.advertisement.localName);
 					console.log('\t\t' + peripheral.rssi);
 
 					if (peripheral.advertisement.manufacturerData) {
@@ -62,6 +60,7 @@ rmq.on('ready', function () {
 						time: Date.now()/1000,
 					}
 
+					// Publish advertisement to RabbitMQ
 					xch.publish('scanner.bleScanner.'+mac_address.toUpperCase(), blob);
 				});
 			}

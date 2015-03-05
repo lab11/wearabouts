@@ -92,9 +92,48 @@ from devices.
 
     For the node.js based scanner:
 
+        # Need BLE packages
         sudo apt-get install bluetooth bluez-utils libbluetooth-dev
-        cd bleScanner
-        npm install
-        sudo node NOBLE_REPORT_ALL_HCI_EVENTS=1 bleScanner.js
 
+        cd bleScannerHCI
+
+        # Setup the config paramters
+        # Need tiller
+        sudo gem install tiller
+        sudo tiller_json="$(cat ../config.json)" tiller -n -b $PWD/tiller
+
+        npm install
+        sudo NOBLE_REPORT_ALL_HCI_EVENTS=1 node bleScanner.js
+
+    For the Python scanner (uses Nordic dongle):
+
+        cd bleScanner
+        tiller_json="$(cat ../config.json)" tiller -n -b $PWD/tiller
+        sudo pip install pika socketIO-client
+        ./bleScanner.py
+
+        OR
+
+        sudo docker run --privileged -v /dev/ttyACM0:/dev/ttyACM0 -e tiller_json="$(cat config.json)" -t lab11/wearabouts-ble-scanner-py
+
+
+Tiller
+------
+
+Tiller is a tool that helps with creating config files inside of Docker
+containers. It's a little tricky to pass config parameters and passwords
+to Docker containers because listing a ton of command line arguments is
+clunky and you can't add the specific config files to the container. Tiller,
+while a little clunky, allows you to pass a single JSON string as a command
+line argument to the docker run command which is handled by tiller inside
+of the docker container to create a config file. When the file has been
+generated Tiller then runs your original command.
+
+Docker
+------
+
+There are Docker containers for some of the parts of this project. To build them:
+
+    sudo pip install sh
+    sudo ./build_docker.py
 

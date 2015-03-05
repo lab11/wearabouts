@@ -1,0 +1,7 @@
+{
+	"host": "rabbitmq.com",
+	"login": "wearabouts",
+	"password": "password",
+	"vhost": "wearabouts",
+	"exchange": "wearabouts"
+}

@@ -16,12 +16,12 @@ Files in bleAPI/ were created by Nordic Semiconductor and are used with minor
 modifications under the license included in the directory.
 
 ## BLE Scanner Installation steps
-1. Install python libraries  
-    `sudo pip install pyserial socketIO-client`
+1. Install python libraries
+    `sudo pip install pyserial socketIO-client pika`
 
 2. Program nrf51822 USB dongle with nRF-Sniffer firmware (follow guide available
 [here](http://www.nordicsemi.com/eng/Products/Bluetooth-Smart-Bluetooth-low-energy/nRF-Sniffer))
 
-3. Run bleScanner  
+3. Run bleScanner
     `./bleScanner.py`
 
