@@ -75,6 +75,10 @@ between applications.
 
         docker logs <container id>
 
+    If you know the password:
+
+        docker run -d -p 5672:5672 -p 15672:15672 -e RABBITMQ_PASS="password" tutum/rabbitmq
+
 
     Now configure the RabbitMQ instance using the web interface:
 
