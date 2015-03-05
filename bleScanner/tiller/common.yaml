@@ -1,0 +1,6 @@
+exec: node /bleScanner/bleScanner.js
+data_sources:
+  - environment_json
+  - file
+template_sources:
+  - file

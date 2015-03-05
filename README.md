@@ -94,7 +94,7 @@ from devices.
 
         sudo apt-get install bluetooth bluez-utils libbluetooth-dev
         cd bleScanner
-        npm install amqp noble getmac
+        npm install
         sudo node NOBLE_REPORT_ALL_HCI_EVENTS=1 bleScanner.js
 
 

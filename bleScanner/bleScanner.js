@@ -2,13 +2,15 @@
  * This scanner uses a typical BLE dongle to scan for advertisement packets.
  */
 
-
-var config = require('./config');
+try {
+	var config = require('/etc/wearabouts/bleScanner/config');
+} catch (e) {
+	var config = require('config')
+}
 
 var amqp = require('amqp');
 var getmac = require('getmac');
 var noble = require('noble');
-
 
 
 var rmq = amqp.createConnection(config.rabbitmq);
@@ -39,7 +41,6 @@ rmq.on('ready', function () {
 				noble.on('discover', function (peripheral) {
 					manufac_data = '';
 
-
 					console.log('peripheral discovered (' + peripheral.uuid.match(/../g).join(':') + '):');
 					console.log('\thello my local name is:');
 					console.log('\t\t' + peripheral.advertisement.localName);
@@ -58,6 +59,7 @@ rmq.on('ready', function () {
 						service_uuids: peripheral.advertisement.serviceUuids,
 						manufacturer_data: manufac_data,
 						rssi: peripheral.rssi,
+						time: Date.now()/1000,
 					}
 
 					xch.publish('scanner.bleScanner.'+mac_address.toUpperCase(), blob);

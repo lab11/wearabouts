@@ -1,0 +1,2 @@
+config.js.erb:
+  target: /etc/wearabouts/bleScanner/config.js
