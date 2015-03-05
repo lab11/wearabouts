@@ -1,7 +1,11 @@
 
 import pika
 
-import config
+try:
+    import config
+except ImportError:
+    print('Need symlink for config from shed')
+    sys.exit(1)
 
 amqp_channel = None
 queue_name = None

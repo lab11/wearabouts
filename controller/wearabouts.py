@@ -280,6 +280,9 @@ class PresenceController ():
             }
 
     def apply_mappings(self, pkt):
+        if pkt == None:
+            return
+
         # location parsing
         if 'location_str' in pkt and pkt['location_str'] == 'demo' or pkt['location_str'] == 'unknown':
             # find the location string
@@ -378,6 +381,7 @@ class PresenceController ():
 
             if loc not in locs:
                 locs[loc] = {}
+                locs[loc]['type'] = 'room'
                 locs[loc]['location_str'] = loc
                 locs[loc]['person_list'] = []
                 locs[loc]['since_list'] = []
@@ -487,7 +491,8 @@ class PresenceController ():
 
         # post to GATD
         if post_data:
-            data = {'uniqname': uniqname,
+            data = {'type': 'person',
+                    'uniqname': uniqname,
                     'full_name': person['full_name'],
                     'location_str': person['location'],
                     'location_id': person['location_id'],

@@ -56,7 +56,6 @@ The following locations have been seen historically:"""
 LOCATION = ""
 
 LOCAL_FILE = ""
-USE_RABBITMQ = True
 
 PACKET_COUNT = 0
 UNIQUE_COUNT = 0
@@ -99,10 +98,15 @@ def main():
     # argument parsing
     parser = argparse.ArgumentParser(description='Scan for bluetooth low-energy devices.')
     parser.add_argument('-local', '--local', help='Run script locally. Specify output file')
+    parser.add_argument('-rabbit', '--rabbit', help='Pipe results into a RabbitMQ instance. Specified in config.py', action='store_true')
     args = parser.parse_args()
 
     if args.local:
         LOCAL_FILE = args.local
+
+    USE_RABBITMQ = False
+    if args.rabbit:
+        USE_RABBITMQ = True
 
     # get a list of previously scanned locations
     #try:
@@ -162,12 +166,15 @@ def main():
     if LOCATION != 'test':
         msg_queue = Queue.Queue()
         if LOCAL_FILE:
+            log.info(curr_datetime() + "Running locally")
             post_thread = LocalPoster(msg_queue, log=log)
             rate_limit = False
         elif USE_RABBITMQ:
+            log.info(curr_datetime() + "Sending to RabbitMQ")
             post_thread = RabbitMQPoster(msg_queue, log=log)
             rate_limit = True
         else:
+            log.info(curr_datetime() + "Sending to GATD")
             post_thread = GATDPoster(msg_queue, log=log)
             rate_limit = True
 
