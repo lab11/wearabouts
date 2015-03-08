@@ -9,6 +9,8 @@ import time
 import random
 import os
 import urllib2
+import pika
+import argparse
 
 try:
     import socketIO_client as sioc
@@ -30,6 +32,16 @@ WEARABOUTS_POST_ADDR = 'http://gatd.eecs.umich.edu:8081/' + WEARABOUTS_PROFILE_I
 
 def main( ):
 
+    # argument parsing
+    parser = argparse.ArgumentParser(description='Determine locations of individuals based on BLE scan information.')
+    parser.add_argument('-rabbit', '--rabbit',
+            help='Pipe data from and results to a RabbitMQ instance. Specified in config.py', action='store_true')
+    args = parser.parse_args()
+
+    USE_RABBITMQ = False
+    if args.rabbit:
+        USE_RABBITMQ = True
+
     # setup logging
     log = logging.getLogger('wearabouts_log')
     log.setLevel(logging.DEBUG)
@@ -42,10 +54,14 @@ def main( ):
 
     # start threads to receive data from GATD
     message_queue = Queue.Queue()
-    ReceiverThread(BLEADDR_PROFILE_ID, {}, 'bleAddr', message_queue)
-    #TODO: Reactivate these once they are written
-    #ReceiverThread(DOOR_PROFILE_ID,    {}, 'door',    message_queue)
-    #ReceiverThread(MACADDR_PROFILE_ID, {}, 'macAddr', message_queue)
+    if USE_RABBITMQ:
+        route_key = 'scanner.#'
+        RabbitMQReceiverThread(route_key, 'bleAddr', message_queue, log)
+    else:
+        SocketIOReceiverThread(BLEADDR_PROFILE_ID, {}, 'bleAddr', message_queue)
+        #TODO: Reactivate these once they are written
+        #SocketIOReceiverThread(DOOR_PROFILE_ID,    {}, 'door',    message_queue)
+        #SocketIOReceiverThread(MACADDR_PROFILE_ID, {}, 'macAddr', message_queue)
 
     # start presence controller
     controller = PresenceController(message_queue, WEARABOUTS_POST_ADDR, log)
@@ -545,7 +561,63 @@ class PresenceController ():
         return False
 
 
-class ReceiverThread (Thread):
+class RabbitMQReceiverThread (Thread):
+
+    def __init__(self, route_key, data_type, message_queue, log):
+        # init thread
+        super(RabbitMQReceiverThread, self).__init__()
+        self.daemon = True
+
+        # init data
+        self.route_key = route_key
+        self.data_type = data_type
+        self.message_queue = message_queue
+        self.log = log
+
+        # start thread
+        print("Running thread")
+        self.start()
+
+
+    def run(self):
+        try:
+            import config
+        except ImportError:
+            print('Cannot find config file. Need symlink from shed')
+            sys.exit(1)
+
+        while True:
+            try:
+                amqp_conn = pika.BlockingConnection(
+                        pika.ConnectionParameters(
+                            host = config.rabbitmq['host'],
+                            virtual_host=config.rabbitmq['vhost'],
+                            credentials=pika.PlainCredentials(
+                                config.rabbitmq['login'],
+                                config.rabbitmq['password'])))
+
+                amqp_chan = amqp_conn.channel()
+
+                result = amqp_chan.queue_declare(exclusive=True)
+
+                queue_name = result.method.queue
+                amqp_chan.queue_bind(
+                        exchange=config.rabbitmq['exchange'],
+                        queue = queue_name,
+                        routing_key = self.route_key)
+
+                amqp_chan.basic_consume(self._on_data, queue_name, no_ack=True)
+
+                amqp_chan.start_consuming()
+            except Exception as e:
+                self.log.error(curr_datetime() + "ERROR - RabbitMQReceiver: " + str(e))
+
+    def _on_data(self, channel, method, prop, body):
+        # data received from rabbitmq. Push to msg_queue
+        self.message_queue.put([self.data_type, json.loads(body)])
+
+
+class SocketIOReceiverThread (Thread):
     SOCKETIO_HOST = 'gatd.eecs.umich.edu'
     SOCKETIO_PORT = 8082
     SOCKETIO_NAMESPACE = 'stream'
@@ -553,7 +625,7 @@ class ReceiverThread (Thread):
     def __init__(self, profile_id, query, data_type, message_queue):
 
         # init thread
-        super(ReceiverThread, self).__init__()
+        super(SocketIOReceiverThread, self).__init__()
         self.daemon = True
 
         # init data

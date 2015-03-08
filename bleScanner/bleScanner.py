@@ -493,7 +493,11 @@ class RabbitMQPoster(Thread):
         self.start()
 
     def run(self):
-        import config
+        try:
+            import config
+        except ImportError:
+            print('Cannot find config file. Need symlink from shed')
+            sys.exit(1)
 
         # Get a blocking connection to the rabbitmq
         self.amqp_conn = pika.BlockingConnection(
@@ -510,7 +514,7 @@ class RabbitMQPoster(Thread):
             # look for a packet
             [ble_addr, dev, payload] = self.msg_queue.get()
             data = {
-                    'time': dev['timestamp'],
+                    'time': dev['timestamp']*1000,
                     'location_str': LOCATION,
                     'ble_addr': ble_addr,
                     'rssi': dev['rssi']['newest'],
