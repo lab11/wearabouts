@@ -458,7 +458,7 @@ class LocalPoster(Thread):
         self.start()
 
     def run(self):
-        global LOCATION
+        global LOCATION, MAC_ADDRESS
 
         while True:
             # look for a packet
@@ -493,6 +493,8 @@ class RabbitMQPoster(Thread):
         self.start()
 
     def run(self):
+        global MAC_ADDRESS
+
         try:
             import config
         except ImportError:

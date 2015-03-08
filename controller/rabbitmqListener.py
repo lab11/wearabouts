@@ -25,7 +25,8 @@ def pika_on_queue_declared (amqp_method_frame):
 	queue_name = amqp_method_frame.method.queue
 	print(queue_name)
 
-	route_key = 'scanner.#'
+	#route_key = 'scanner.#'
+        route_key = 'wearabouts'
 
 	amqp_channel.queue_bind(pika_on_queue_bind,
 	                        exchange=config.rabbitmq['exchange'],

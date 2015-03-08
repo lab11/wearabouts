@@ -53,18 +53,20 @@ def main( ):
     print("Running wearabouts controller...")
 
     # start threads to receive data from GATD
-    message_queue = Queue.Queue()
+    recv_queue = Queue.Queue()
+    post_queue = Queue.Queue()
     if USE_RABBITMQ:
-        route_key = 'scanner.#'
-        RabbitMQReceiverThread(route_key, 'bleAddr', message_queue, log)
+        RabbitMQReceiverThread('scanner.#', 'bleAddr', recv_queue, log)
+        RabbitMQPoster('wearabouts', post_queue, log=log)
     else:
-        SocketIOReceiverThread(BLEADDR_PROFILE_ID, {}, 'bleAddr', message_queue)
+        SocketIOReceiverThread(BLEADDR_PROFILE_ID, {}, 'bleAddr', recv_queue)
         #TODO: Reactivate these once they are written
         #SocketIOReceiverThread(DOOR_PROFILE_ID,    {}, 'door',    message_queue)
         #SocketIOReceiverThread(MACADDR_PROFILE_ID, {}, 'macAddr', message_queue)
+        GATDPoster(WEARABOUTS_POST_ADDR, post_queue, log=log)
 
     # start presence controller
-    controller = PresenceController(message_queue, WEARABOUTS_POST_ADDR, log)
+    controller = PresenceController(recv_queue, post_queue, log)
     #XXX: bring this back once it works
     #while True:
     #    try:
@@ -72,18 +74,6 @@ def main( ):
     #    except Exception as e:
     #        log.error(curr_datetime() + "ERROR - PresenceController: " + str(e))
     controller.monitor()
-
-def post_to_gatd(data, address, log=None):
-    try:
-        req = urllib2.Request(address)
-        req.add_header('Content-Type', 'application/json')
-        response = urllib2.urlopen(req, json.dumps(data))
-    except (httplib.BadStatusLine, ullib2.URLError), e:
-        # ignore error and carry on
-        if log:
-            log.error(curr_datetime() + "ERROR - Post to GATD: " + str(e))
-        else:
-            print(curr_datetime() + "ERROR - Post to GATD: " + str(e))
 
 def curr_datetime():
     return time.strftime("%m/%d/%Y %H:%M:%S ")
@@ -109,10 +99,10 @@ class PresenceController ():
     # how long to maintain a person with no further information
     PRESENCE_LIFETIME = 12*60*60
 
-    def __init__(self, queue, post_address, log):
-        self.msg_queue = queue
+    def __init__(self, recv_queue, post_queue, log):
+        self.recv_queue = recv_queue
+        self.post_queue = post_queue
         self.log = log
-        self.post_address = post_address
 
         self.presences = {}
         self.last_locate_time = 0
@@ -129,7 +119,7 @@ class PresenceController ():
             pkt = None
             try:
                 # wait for data from GATD
-                [data_type, pkt] = self.msg_queue.get(timeout=5)
+                [data_type, pkt] = self.recv_queue.get(timeout=5)
             except Queue.Empty:
                 # No data has been seen, timeout to update presences
                 pass
@@ -411,7 +401,7 @@ class PresenceController ():
 
         # post each location to GATD in addtion to each individual
         for loc in locs:
-            post_to_gatd(locs[loc], self.post_address, self.log)
+            self.post_queue.put(locs[loc])
 
     # some function to go through each location in a person and figure out where they are
     #   also posts to GATD if there is a change
@@ -516,7 +506,7 @@ class PresenceController ():
                     'last_seen': person['last_seen'],
                     'confidence': person['confidence'],
                     'present_by': present_by}
-            post_to_gatd(data, self.post_address, self.log)
+            self.post_queue.put(data)
 
         self.log_status(uniqname, location, present_by)
 
@@ -675,6 +665,88 @@ class StreamReceiver (sioc.BaseNamespace):
     def on_data (self, *args):
         # data received from gatd. Push to msg_q
         self.message_queue.put([self.data_type, args[0]])
+
+
+class GATDPoster(Thread):
+    def __init__(self, address, queue, log=None):
+        # init thread
+        super(GATDPoster, self).__init__()
+        self.daemon = True
+
+        # init data
+        self.post_address = address
+        self.msg_queue = queue
+        self.log = log
+
+        # autostart thread
+        self.start()
+
+    def run(self):
+        while True:
+            # look for a packet
+            data = self.msg_queue.get()
+
+            # post to GATD
+            #XXX: Change this to do UDP posts instead of HTTP posts for speed
+            try:
+                req = urllib2.Request(self.post_address)
+                req.add_header('Content-Type', 'application/json')
+                response = urllib2.urlopen(req, json.dumps(data))
+            except Exception as e:
+                # ignore error and carry on
+                if self.log:
+                    self.log.error(curr_datetime() + "ERROR - GATDPoster: " + str(e))
+                else:
+                    print(curr_datetime() + "ERROR - GATDPoster: " + str(e))
+            finally:
+                self.msg_queue.task_done()
+
+
+class RabbitMQPoster(Thread):
+    def __init__(self, route_key, queue, log=None):
+
+        # init thread
+        super(RabbitMQPoster, self).__init__()
+        self.daemon = True
+
+        # init data
+        self.route_key = route_key
+        self.msg_queue = queue
+        self.log = log
+
+        # autostart thread
+        self.start()
+
+    def run(self):
+        try:
+            import config
+        except ImportError:
+            print('Cannot find config file. Need symlink from shed')
+            sys.exit(1)
+
+        # Get a blocking connection to the rabbitmq
+        self.amqp_conn = pika.BlockingConnection(
+                pika.ConnectionParameters(
+                    host=config.rabbitmq['host'],
+                    virtual_host=config.rabbitmq['vhost'],
+                    credentials=pika.PlainCredentials(
+                        config.rabbitmq['login'],
+                        config.rabbitmq['password']))
+            )
+        self.amqp_chan = self.amqp_conn.channel()
+
+        while True:
+            # look for a packet
+            data = self.msg_queue.get()
+
+            # post to RabbitMQ
+            self.amqp_chan.basic_publish(exchange=config.rabbitmq['exchange'],
+                                body=json.dumps(data),
+                                routing_key=self.route_key)
+
+            self.msg_queue.task_done()
+
+
 
 
 if __name__=="__main__":
