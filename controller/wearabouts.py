@@ -52,7 +52,7 @@ def main( ):
     log.info("Running wearabouts controller...")
     print("Running wearabouts controller...")
 
-    # start threads to receive data from GATD
+    # start threads to receive data from GATD or RabbitMQ
     recv_queue = Queue.Queue()
     post_queue = Queue.Queue()
     if USE_RABBITMQ:
@@ -91,7 +91,7 @@ class PresenceController ():
     BLE_DURATION = 30
 
     # minimum BLE RSSI that counts as in the room, dBm
-    BLE_MIN_RSSI = -83
+    BLE_MIN_RSSI = -95
 
     # difference in BLE causing a room switch
     BLE_SWITCH_POINT = 10
@@ -105,6 +105,7 @@ class PresenceController ():
         self.log = log
 
         self.presences = {}
+        self.locations = []
         self.last_locate_time = 0
         self.last_update = 0
         self.last_packet = 0
@@ -165,6 +166,8 @@ class PresenceController ():
 
             # create location if necessary
             location = pkt['location_str']
+            if location not in self.locations and location != 'None' and location != 'unknown':
+                self.locations.append(location)
             if location not in person['location_data']:
                 person['location_data'][location] = {
                         'last_seen': 0,
@@ -377,14 +380,16 @@ class PresenceController ():
     # some function to go through each person and figure out where they are
     def locate_everyone(self):
         self.last_locate_time = time.time()
+
+        # find all the people
         locs = {}
         for uniqname in self.presences.keys():
             # also posts data to GATD for that uniqname
             loc = self.locate_person(uniqname)
-
             if loc == 'None':
                 continue
 
+            # keep track of each location that has people in it
             if loc not in locs:
                 locs[loc] = {}
                 locs[loc]['type'] = 'room'
@@ -392,6 +397,7 @@ class PresenceController ():
                 locs[loc]['person_list'] = []
                 locs[loc]['since_list'] = []
 
+            # add uniqname to list of people in that room
             locs[loc]['person_list'].append(uniqname)
             if uniqname in self.presences:
                 locs[loc]['since_list'].append(self.presences[uniqname]['present_since'])
@@ -400,8 +406,19 @@ class PresenceController ():
                 locs[loc]['since_list'].append(time.time())
 
         # post each location to GATD in addtion to each individual
-        for loc in locs:
-            self.post_queue.put(locs[loc])
+        empty_loc = {}
+        empty_loc['type'] = 'room'
+        empty_loc['location_str'] = 'None'
+        empty_loc['person_list'] = []
+        empty_loc['since_list'] = []
+        for location in self.locations:
+            if location in locs:
+                # location is occupied
+                self.post_queue.put(locs[loc])
+            else:
+                # location is unoccupied
+                empty_loc['location_str'] = location
+                self.post_queue.put(empty_loc)
 
     # some function to go through each location in a person and figure out where they are
     #   also posts to GATD if there is a change

@@ -108,8 +108,7 @@ class EventGenerator ():
 
                 uniqname = pkt['uniqname']
                 # create new person if necessary
-                if location_str != 'None' and uniqname not in self.people:
-                    self.people[uniqname] = {}
+                if uniqname not in self.people:
                     self.people[uniqname] = 'None'
 
                 # create events
@@ -260,10 +259,10 @@ class RabbitMQPoster(Thread):
             (data, route) = self.msg_queue.get()
 
             # post to RabbitMQ
-            print("\tPosting to route: " + self.route_key+'.'+route.replace(' ', '_'))
+            print("\tPosting to route: " + self.route_key+'.'+route.replace(' ', '_').replace('|', '.'))
             self.amqp_chan.basic_publish(exchange=config.rabbitmq['exchange'],
                                 body=json.dumps(data),
-                                routing_key=self.route_key+'.'+route.replace(' ', '_'))
+                                routing_key=self.route_key+'.'+route.replace(' ', '_').replace('|', '.'))
 
             self.msg_queue.task_done()
 
