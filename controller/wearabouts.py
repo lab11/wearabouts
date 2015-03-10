@@ -406,12 +406,12 @@ class PresenceController ():
                 locs[loc]['since_list'] = []
 
             # add uniqname to list of people in that room
-            locs[loc]['person_list'].append(uniqname)
+            locs[loc]['person_list'].append({uniqname: self.presences[uniqname]['full_name']})
             if uniqname in self.presences:
-                locs[loc]['since_list'].append(self.presences[uniqname]['present_since'])
+                locs[loc]['since_list'].append({uniqname: self.presences[uniqname]['present_since']})
             else:
                 self.log.error(curr_datetime() + "ERROR - Someone deleted when in a valid location? " + str(uniqname))
-                locs[loc]['since_list'].append(time.time())
+                locs[loc]['since_list'].append({uniqname: time.time()})
 
         # post each location to GATD in addtion to each individual
         empty_loc = {}
@@ -422,11 +422,11 @@ class PresenceController ():
         for location in self.locations:
             if location in locs:
                 # location is occupied
-                self.post_queue.put(locs[location])
+                self.post_queue.put((locs[location], location))
             else:
                 # location is unoccupied
                 empty_loc['location_str'] = location
-                self.post_queue.put(empty_loc)
+                self.post_queue.put((empty_loc, location))
 
     # some function to go through each location in a person and figure out where they are
     #   also posts to GATD if there is a change
@@ -531,7 +531,7 @@ class PresenceController ():
                     'last_seen': person['last_seen'],
                     'confidence': person['confidence'],
                     'present_by': present_by}
-            self.post_queue.put(data)
+            self.post_queue.put((data, person['location']))
 
         self.log_status(uniqname, location, present_by)
 
