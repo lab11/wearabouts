@@ -1,5 +1,6 @@
 
 import pika
+import time
 
 try:
     import config
@@ -10,8 +11,11 @@ except ImportError:
 amqp_channel = None
 queue_name = None
 
+def curr_datetime():
+    return time.strftime("%m/%d/%Y %H:%M:%S ")
+
 def callback (channel, method, prop, body):
-	print(body)
+	print(curr_datetime() + body)
 
 def pika_on_queue_bind (amqp_method_frame):
 	global amqp_channel, queue_name
@@ -27,7 +31,7 @@ def pika_on_queue_declared (amqp_method_frame):
 
 	#route_key = 'scanner.#'
         #route_key = 'wearabouts'
-        route_key = 'presence_event.#'
+        route_key = 'event.presence.#'
 
 	amqp_channel.queue_bind(pika_on_queue_bind,
 	                        exchange=config.rabbitmq['exchange'],

@@ -48,15 +48,16 @@ def main( ):
     # start threads to receive data from GATD or RabbitMQ
     recv_queue = Queue.Queue()
     post_queue = Queue.Queue()
+    threads = []
     if USE_RABBITMQ:
-        RabbitMQReceiverThread('wearabouts', 'wearabouts', recv_queue, log)
-        RabbitMQPoster('presence_event', post_queue, log=log)
+        threads.append(RabbitMQReceiverThread('wearabouts', 'wearabouts', recv_queue, log))
+        threads.append(RabbitMQPoster('event.presence', post_queue, log=log))
     else:
         print("Events not supported in GATD currently. Run with --rabbit")
         sys.exit(1)
 
     # start event generator
-    generator = EventGenerator(recv_queue, post_queue, log)
+    generator = EventGenerator(recv_queue, post_queue, threads, log)
     #XXX: bring this back once it works
     #while True:
     #    try:
@@ -71,9 +72,10 @@ def curr_datetime():
 
 class EventGenerator ():
 
-    def __init__(self, recv_queue, post_queue, log):
+    def __init__(self, recv_queue, post_queue, threads, log):
         self.recv_queue = recv_queue
         self.post_queue = post_queue
+        self.threads = threads
         self.log = log
 
         self.people = {}
@@ -90,6 +92,12 @@ class EventGenerator ():
             except Queue.Empty:
                 # No data has been seen, timeout occurred
                 pass
+
+            # check that I/O threads haven't died
+            for thread in self.threads:
+                if thread and not thread.isAlive():
+                    self.log.error(curr_datetime() + "ERROR - I/O thread died")
+                    sys.exit(1)
 
             if (pkt == None or 'location_str' not in pkt or 'type' not in pkt):
                 continue
@@ -161,6 +169,7 @@ class EventGenerator ():
             # post events to queue if any
             if len(event_list) > 0:
                 for event in event_list:
+                    self.log.debug(curr_datetime() + "DEBUG - " + str(event))
                     print(curr_datetime() + event['event_str'] + ' at ' + event['location_str'])
                     self.post_queue.put((event, event['location_str']))
 
@@ -243,28 +252,32 @@ class RabbitMQPoster(Thread):
             print('Cannot find config file. Need symlink from shed')
             sys.exit(1)
 
-        # Get a blocking connection to the rabbitmq
-        self.amqp_conn = pika.BlockingConnection(
-                pika.ConnectionParameters(
-                    host=config.rabbitmq['host'],
-                    virtual_host=config.rabbitmq['vhost'],
-                    credentials=pika.PlainCredentials(
-                        config.rabbitmq['login'],
-                        config.rabbitmq['password']))
-            )
-        self.amqp_chan = self.amqp_conn.channel()
-
         while True:
-            # look for a packet
-            (data, route) = self.msg_queue.get()
+            try:
+                # Get a blocking connection to the rabbitmq
+                self.amqp_conn = pika.BlockingConnection(
+                        pika.ConnectionParameters(
+                            host=config.rabbitmq['host'],
+                            virtual_host=config.rabbitmq['vhost'],
+                            credentials=pika.PlainCredentials(
+                                config.rabbitmq['login'],
+                                config.rabbitmq['password']))
+                    )
+                self.amqp_chan = self.amqp_conn.channel()
 
-            # post to RabbitMQ
-            print("\tPosting to route: " + self.route_key+'.'+route.replace(' ', '_').replace('|', '.'))
-            self.amqp_chan.basic_publish(exchange=config.rabbitmq['exchange'],
-                                body=json.dumps(data),
-                                routing_key=self.route_key+'.'+route.replace(' ', '_').replace('|', '.'))
+                while True:
+                    # look for a packet
+                    (data, route) = self.msg_queue.get()
 
-            self.msg_queue.task_done()
+                    # post to RabbitMQ
+                    print("\tPosting to route: " + self.route_key+'.'+route.replace(' ', '_').replace('|', '.'))
+                    self.amqp_chan.basic_publish(exchange=config.rabbitmq['exchange'],
+                                        body=json.dumps(data),
+                                        routing_key=self.route_key+'.'+route.replace(' ', '_').replace('|', '.'))
+
+                    self.msg_queue.task_done()
+            except Exception as e:
+                self.log.error(curr_datetime() + "ERROR - RabbitMQPoster: " + str(e))
 
 
 if __name__=="__main__":

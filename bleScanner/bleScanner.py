@@ -171,7 +171,7 @@ def main():
             rate_limit = False
         elif USE_RABBITMQ:
             log.info(curr_datetime() + "Sending to RabbitMQ")
-            post_thread = RabbitMQPoster(msg_queue, log=log)
+            post_thread = RabbitMQPoster('scanner.bleScanner', msg_queue, log=log)
             rate_limit = True
         else:
             log.info(curr_datetime() + "Sending to GATD")
@@ -479,13 +479,14 @@ class LocalPoster(Thread):
             self.msg_queue.task_done()
 
 class RabbitMQPoster(Thread):
-    def __init__(self, queue, log=None):
+    def __init__(self, route_key, queue, log):
 
         # init thread
         super(RabbitMQPoster, self).__init__()
         self.daemon = True
 
         # init data
+        self.route_key = route_key
         self.msg_queue = queue
         self.log = log
 
@@ -501,36 +502,44 @@ class RabbitMQPoster(Thread):
             print('Cannot find config file. Need symlink from shed')
             sys.exit(1)
 
-        # Get a blocking connection to the rabbitmq
-        self.amqp_conn = pika.BlockingConnection(
-                pika.ConnectionParameters(
-                    host=config.rabbitmq['host'],
-                    virtual_host=config.rabbitmq['vhost'],
-                    credentials=pika.PlainCredentials(
-                        config.rabbitmq['login'],
-                        config.rabbitmq['password']))
-            )
-        self.amqp_chan = self.amqp_conn.channel()
-
         while True:
-            # look for a packet
-            [ble_addr, dev, payload] = self.msg_queue.get()
-            data = {
-                    'time': dev['timestamp']*1000,
-                    'location_str': LOCATION,
-                    'ble_addr': ble_addr,
-                    'rssi': dev['rssi']['newest'],
-                    'avg_rssi': dev['rssi']['average'],
-                    'name': dev['name'],
-                    'scanner_macAddr': MAC_ADDRESS,
-                    'payload': payload
-                    }
+            try:
+                # Get a blocking connection to the rabbitmq
+                self.amqp_conn = pika.BlockingConnection(
+                        pika.ConnectionParameters(
+                            host=config.rabbitmq['host'],
+                            virtual_host=config.rabbitmq['vhost'],
+                            credentials=pika.PlainCredentials(
+                                config.rabbitmq['login'],
+                                config.rabbitmq['password']))
+                    )
+                self.amqp_chan = self.amqp_conn.channel()
 
-            self.amqp_chan.basic_publish(exchange=config.rabbitmq['exchange'],
-                                body=json.dumps(data),
-                                routing_key='scanner.bleScanner.'+MAC_ADDRESS)
+                while True:
+                    # look for a packet
+                    [ble_addr, dev, payload] = self.msg_queue.get()
+                    data = {
+                            'time': dev['timestamp']*1000,
+                            'location_str': LOCATION,
+                            'ble_addr': ble_addr,
+                            'rssi': dev['rssi']['newest'],
+                            'avg_rssi': dev['rssi']['average'],
+                            'name': dev['name'],
+                            'scanner_macAddr': MAC_ADDRESS,
+                            'payload': payload
+                            }
 
-            self.msg_queue.task_done()
+                    try:
+                        self.amqp_chan.basic_publish(exchange=config.rabbitmq['exchange'],
+                                            body=json.dumps(data),
+                                            routing_key=self.route_key+'.'+MAC_ADDRESS)
+                    except:
+                        self.msg_queue.task_done()
+                        raise
+
+                    self.msg_queue.task_done()
+            except Exception as e:
+                self.log.error(curr_datetime() + "ERROR - RabbitMQPoster: " + str(e))
 
 def curr_datetime():
     return time.strftime("%m/%d/%Y %H:%M:%S ")

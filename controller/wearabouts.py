@@ -55,18 +55,19 @@ def main( ):
     # start threads to receive data from GATD or RabbitMQ
     recv_queue = Queue.Queue()
     post_queue = Queue.Queue()
+    threads = []
     if USE_RABBITMQ:
-        RabbitMQReceiverThread('scanner.#', 'bleAddr', recv_queue, log)
-        RabbitMQPoster('wearabouts', post_queue, log=log)
+        threads.append(RabbitMQReceiverThread('scanner.#', 'bleAddr', recv_queue, log))
+        threads.append(RabbitMQPoster('wearabouts', post_queue, log=log))
     else:
-        SocketIOReceiverThread(BLEADDR_PROFILE_ID, {}, 'bleAddr', recv_queue)
+        threads.append(SocketIOReceiverThread(BLEADDR_PROFILE_ID, {}, 'bleAddr', recv_queue))
         #TODO: Reactivate these once they are written
         #SocketIOReceiverThread(DOOR_PROFILE_ID,    {}, 'door',    message_queue)
         #SocketIOReceiverThread(MACADDR_PROFILE_ID, {}, 'macAddr', message_queue)
-        GATDPoster(WEARABOUTS_POST_ADDR, post_queue, log=log)
+        threads.append(GATDPoster(WEARABOUTS_POST_ADDR, post_queue, log=log))
 
     # start presence controller
-    controller = PresenceController(recv_queue, post_queue, log)
+    controller = PresenceController(recv_queue, post_queue, threads, log)
     #XXX: bring this back once it works
     #while True:
     #    try:
@@ -99,9 +100,10 @@ class PresenceController ():
     # how long to maintain a person with no further information
     PRESENCE_LIFETIME = 12*60*60
 
-    def __init__(self, recv_queue, post_queue, log):
+    def __init__(self, recv_queue, post_queue, threads, log):
         self.recv_queue = recv_queue
         self.post_queue = post_queue
+        self.threads = threads
         self.log = log
 
         self.presences = {}
@@ -126,6 +128,12 @@ class PresenceController ():
                 pass
 
             self.update_screen()
+
+            # check that input/output threads haven't died
+            for thread in self.threads:
+                if thread and not thread.isAlive():
+                    self.log.error(curr_datetime() + "ERROR - I/O thread died")
+                    sys.exit(1)
 
             # automatically re-run locate if it's been static too long
             if ((time.time() - self.last_locate_time) > self.LOCATE_PERIOD):
@@ -414,7 +422,7 @@ class PresenceController ():
         for location in self.locations:
             if location in locs:
                 # location is occupied
-                self.post_queue.put(locs[loc])
+                self.post_queue.put(locs[location])
             else:
                 # location is unoccupied
                 empty_loc['location_str'] = location
@@ -741,29 +749,32 @@ class RabbitMQPoster(Thread):
             print('Cannot find config file. Need symlink from shed')
             sys.exit(1)
 
-        # Get a blocking connection to the rabbitmq
-        self.amqp_conn = pika.BlockingConnection(
-                pika.ConnectionParameters(
-                    host=config.rabbitmq['host'],
-                    virtual_host=config.rabbitmq['vhost'],
-                    credentials=pika.PlainCredentials(
-                        config.rabbitmq['login'],
-                        config.rabbitmq['password']))
-            )
-        self.amqp_chan = self.amqp_conn.channel()
-
         while True:
-            # look for a packet
-            data = self.msg_queue.get()
+            try:
+                # Get a blocking connection to the rabbitmq
+                self.amqp_conn = pika.BlockingConnection(
+                        pika.ConnectionParameters(
+                            host=config.rabbitmq['host'],
+                            virtual_host=config.rabbitmq['vhost'],
+                            credentials=pika.PlainCredentials(
+                                config.rabbitmq['login'],
+                                config.rabbitmq['password']))
+                    )
+                self.amqp_chan = self.amqp_conn.channel()
 
-            # post to RabbitMQ
-            self.amqp_chan.basic_publish(exchange=config.rabbitmq['exchange'],
-                                body=json.dumps(data),
-                                routing_key=self.route_key)
+                while True:
+                    # look for a packet
+                    (data, route) = self.msg_queue.get()
 
-            self.msg_queue.task_done()
+                    # post to RabbitMQ
+                    print("\tPosting to route: " + self.route_key+'.'+route.replace(' ', '_').replace('|', '.'))
+                    self.amqp_chan.basic_publish(exchange=config.rabbitmq['exchange'],
+                                        body=json.dumps(data),
+                                        routing_key=self.route_key+'.'+route.replace(' ', '_').replace('|', '.'))
 
-
+                    self.msg_queue.task_done()
+            except Exception as e:
+                self.log.error(curr_datetime() + "ERROR - RabbitMQPoster: " + str(e))
 
 
 if __name__=="__main__":

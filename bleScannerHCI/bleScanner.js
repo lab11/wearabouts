@@ -7,7 +7,7 @@
 try {
 	var config = require('/etc/wearabouts/bleScanner/config');
 } catch (e) {
-	var config = require('config')
+	var config = require('./config');
 }
 
 var amqp = require('amqp');
