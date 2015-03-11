@@ -50,7 +50,7 @@ def main( ):
     post_queue = Queue.Queue()
     threads = []
     if USE_RABBITMQ:
-        threads.append(RabbitMQReceiverThread('wearabouts', 'wearabouts', recv_queue, log))
+        threads.append(RabbitMQReceiverThread('wearabouts.#', 'wearabouts', recv_queue, log))
         threads.append(RabbitMQPoster('event.presence', post_queue, log=log))
     else:
         print("Events not supported in GATD currently. Run with --rabbit")
