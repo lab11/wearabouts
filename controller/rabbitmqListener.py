@@ -1,3 +1,4 @@
+#!/usr/bin/env python2
 
 import pika
 import time
@@ -31,7 +32,8 @@ def pika_on_queue_declared (amqp_method_frame):
 
 	#route_key = 'scanner.#'
         #route_key = 'wearabouts'
-        route_key = 'event.presence.#'
+        #route_key = 'event.presence.#'
+        route_key = 'event.override.#'
 
 	amqp_channel.queue_bind(pika_on_queue_bind,
 	                        exchange=config.rabbitmq['exchange'],

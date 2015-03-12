@@ -767,7 +767,7 @@ class RabbitMQPoster(Thread):
                     (data, route) = self.msg_queue.get()
 
                     # post to RabbitMQ
-                    print("\tPosting to route: " + self.route_key+'.'+route.replace(' ', '_').replace('|', '.'))
+                    #print("\tPosting to route: " + self.route_key+'.'+route.replace(' ', '_').replace('|', '.'))
                     self.amqp_chan.basic_publish(exchange=config.rabbitmq['exchange'],
                                         body=json.dumps(data),
                                         routing_key=self.route_key+'.'+route.replace(' ', '_').replace('|', '.'))
