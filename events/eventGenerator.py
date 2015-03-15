@@ -22,6 +22,12 @@ except ImportError:
     print('sudo pip install socketIO-client')
     sys.exit(1)
 
+try:
+    import config
+except ImportError:
+    print('Cannot find config file. Need symlink from shed')
+    sys.exit(1)
+
 
 def main( ):
 
@@ -193,12 +199,6 @@ class RabbitMQReceiverThread (Thread):
 
 
     def run(self):
-        try:
-            import config
-        except ImportError:
-            print('Cannot find config file. Need symlink from shed')
-            sys.exit(1)
-
         while True:
             try:
                 amqp_conn = pika.BlockingConnection(
@@ -245,42 +245,44 @@ class RabbitMQPoster(Thread):
         # autostart thread
         self.start()
 
+    def _open_connection(self):
+        # Get a blocking connection to the rabbitmq
+        self.amqp_conn = pika.BlockingConnection(
+                pika.ConnectionParameters(
+                    host=config.rabbitmq['host'],
+                    virtual_host=config.rabbitmq['vhost'],
+                    credentials=pika.PlainCredentials(
+                        config.rabbitmq['login'],
+                        config.rabbitmq['password']))
+            )
+        self.amqp_chan = self.amqp_conn.channel()
+
+
     def run(self):
-        try:
-            import config
-        except ImportError:
-            print('Cannot find config file. Need symlink from shed')
-            sys.exit(1)
+        # open connection before starting
+        self._open_connection()
 
         while True:
+            # look for a packet
+            (data, route) = self.msg_queue.get()
+
+            # check that connection is still valid
+            if (self.amqp_conn == None or self.amqp_conn.is_closed or self.amqp_conn.is_closing):
+                self.log.info(curr_datetime() + "INFO - RabbitMQPoster: had to re-open connection")
+                self.amqp_conn.close()
+                self._open_connection()
+
+            # post to RabbitMQ
+            #print("\tPosting to route: " + self.route_key+'.'+route.replace(' ', '_').replace('|', '.'))
             try:
-                # Get a blocking connection to the rabbitmq
-                self.amqp_conn = pika.BlockingConnection(
-                        pika.ConnectionParameters(
-                            host=config.rabbitmq['host'],
-                            virtual_host=config.rabbitmq['vhost'],
-                            credentials=pika.PlainCredentials(
-                                config.rabbitmq['login'],
-                                config.rabbitmq['password']))
-                    )
-                self.amqp_chan = self.amqp_conn.channel()
-
-                while True:
-                    # look for a packet
-                    (data, route) = self.msg_queue.get()
-
-                    # post to RabbitMQ
-                    #print("\tPosting to route: " + self.route_key+'.'+route.replace(' ', '_').replace('|', '.'))
-                    self.amqp_chan.basic_publish(exchange=config.rabbitmq['exchange'],
-                                        body=json.dumps(data),
-                                        routing_key=self.route_key+'.'+route.replace(' ', '_').replace('|', '.'))
-
-                    self.msg_queue.task_done()
+                self.amqp_chan.basic_publish(exchange=config.rabbitmq['exchange'],
+                        body=json.dumps(data),
+                        routing_key=self.route_key+'.'+route.replace(' ', '_').replace('|', '.'))
             except Exception as e:
-                self.log.error(curr_datetime() + "ERROR - RabbitMQPoster: " + str(e) + '\n\t\t' +
-                        'data: ' + str(data) + '\n\t\t' +
-                        'route: ' + str(route) + '\n\t\t' +
-                        'amqp_chan: ' + str(self.amqp_chan) )
+                # don't know how to handle this. Just try continuing...
+                self.log.error(curr_datetime() + "ERROR - RabbitMQPoster: " + str(e) + ' ' + repr(e))
+
+            self.msg_queue.task_done()
 
 
 if __name__=="__main__":

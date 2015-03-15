@@ -19,6 +19,9 @@ from bleAPI import Exceptions
 import subprocess
 command = "ifconfig eth0 | grep HWaddr | cut -dH -f2 | cut -d\  -f2"
 MAC_ADDRESS = subprocess.check_output(command, shell=True)[0:-1].upper()
+if MAC_ADDRESS == '':
+    from uuid import getnode as get_mac
+    MAC_ADDRESS = ':'.join(("%012X" % get_mac())[i:i+2] for i in range(0, 12, 2))
 
 try:
     from serial import SerialException

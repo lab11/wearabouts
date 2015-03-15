@@ -188,13 +188,18 @@ class PresenceController ():
             # handle bleAddr data
             if data_type == 'bleAddr':
                 # specific field validity testing
-                if 'avg_rssi' not in pkt or 'rssi' not in pkt:
+                if 'avg_rssi' not in pkt or 'rssi' not in pkt or 'scanner_macAddr' not in pkt:
                     self.log.error(curr_datetime() + " Got an invalid ble packet")
                     continue
 
                 # create dict if necessary
                 if 'bleAddr' not in evidence:
-                    evidence['bleAddr'] = {
+                    evidence['bleAddr'] = {}
+
+                # multiple scanners can exist at a single location
+                scanner = pkt['scanner_macAddr']
+                if scanner not in evidence['bleAddr']:
+                    evidence['bleAddr'][scanner] = {
                             'time': 0,
                             'rssi': -200,
                             'address': ''
@@ -202,10 +207,10 @@ class PresenceController ():
 
                 # update user information
                 timestamp = int(round(pkt['time']/1000))
-                if timestamp > evidence['bleAddr']['time']:
-                    evidence['bleAddr']['time'] = timestamp
-                    evidence['bleAddr']['rssi'] = pkt['avg_rssi']
-                    evidence['bleAddr']['address'] = pkt['ble_addr']
+                if timestamp > evidence['bleAddr'][scanner]['time']:
+                    evidence['bleAddr'][scanner]['time'] = timestamp
+                    evidence['bleAddr'][scanner]['rssi'] = pkt['avg_rssi']
+                    evidence['bleAddr'][scanner]['address'] = pkt['ble_addr']
 
                 # locate the user based on this new information. Only relocate
                 #   if the person may have entered or left, which is noted by
@@ -268,6 +273,7 @@ class PresenceController ():
 
     scanner_mapping = {
             '00:0C:29:CB:0A:60': ('University of Michigan|BBB|4908', '0'),
+            'C0:3F:D5:6A:A0:C3': ('University of Michigan|BBB|4908', '0'),
             '78:A5:04:DC:83:7C': ('University of Michigan|BBB|4901', '1'),
             'D0:39:72:4B:AD:14': ('University of Michigan|BBB|4670', '2')
             }
@@ -350,7 +356,8 @@ class PresenceController ():
 
         rssi = '--'
         if location != 'None':
-            rssi = person['location_data'][location]['bleAddr']['rssi']
+            rssi = max([person['location_data'][location]['bleAddr'][scanner]['rssi']
+                for scanner in person['location_data'][location]['bleAddr']])
 
         print_str = "(" + str(index) + ")" + \
                 "\tName: " + str(person['full_name']) + \
@@ -455,8 +462,10 @@ class PresenceController ():
             if (len(ble_locs) != 0):
 
                 # get best rssi and locations with that rssi
-                rssi_loc_pairs = [(loc, person['location_data'][loc]['bleAddr']['rssi']) 
-                        for loc in possible_locations]
+                rssi_loc_pairs = []
+                for loc in possible_locations:
+                    for scanner in person['location_data'][loc]['bleAddr']:
+                        rssi_loc_pairs.append((loc, person['location_data'][loc]['bleAddr'][scanner]['rssi']))
                 best_rssi = max(rssi_loc_pairs, key = lambda x: x[1])[1]
                 best_rssi_locs = [item[0] for item in rssi_loc_pairs
                         if item[1] == best_rssi]
@@ -474,7 +483,8 @@ class PresenceController ():
                     confidence = (1 - (-best_rssi)/101.0)
                 else:
                     # only pick new location if ble is sufficiently higher
-                    curr_rssi = person['location_data'][curr_location]['bleAddr']['rssi']
+                    curr_rssi = max([person['location_data'][curr_location]['bleAddr'][scanner]['rssi']
+                        for scanner in person['location_data'][curr_location]['bleAddr']])
                     if ((best_rssi - curr_rssi) > self.BLE_SWITCH_POINT):
                         new_location = random.choice(best_rssi_locs)
                         confidence = (1 - (-best_rssi)/101.0)
@@ -551,13 +561,14 @@ class PresenceController ():
 
         # check if ble RSSI is strong enough
         if 'bleAddr' in evidence:
-            if ((curr_time - evidence['bleAddr']['time']) < self.BLE_DURATION and
-                    evidence['bleAddr']['rssi'] >= self.BLE_MIN_RSSI):
-                person['last_seen'] = evidence['bleAddr']['time']
-                person['location_data'][location]['last_seen'] = evidence['bleAddr']['time']
-                evidence['present_by'] = 'bleAddr'
-                evidence['potentially_present'] = True
-                return True
+            for scanner in evidence['bleAddr']:
+                if ((curr_time - evidence['bleAddr'][scanner]['time']) < self.BLE_DURATION and
+                        evidence['bleAddr'][scanner]['rssi'] >= self.BLE_MIN_RSSI):
+                    person['last_seen'] = evidence['bleAddr'][scanner]['time']
+                    person['location_data'][location]['last_seen'] = evidence['bleAddr'][scanner]['time']
+                    evidence['present_by'] = 'bleAddr'
+                    evidence['potentially_present'] = True
+                    return True
 
         #TODO: check if mac RSSI is strong enough
         #if 'macAddr' in evidence:
