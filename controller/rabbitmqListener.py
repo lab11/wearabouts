@@ -18,6 +18,7 @@ def curr_datetime():
 def callback (channel, method, prop, body):
 	print(curr_datetime() + body)
 
+
 def pika_on_queue_bind (amqp_method_frame):
 	global amqp_channel, queue_name
 
@@ -31,9 +32,10 @@ def pika_on_queue_declared (amqp_method_frame):
 	print(queue_name)
 
 	#route_key = 'scanner.#'
+	route_key = 'experimental.scanner.#'
         #route_key = 'wearabouts'
         #route_key = 'event.presence.#'
-        route_key = 'event.override.#'
+        #route_key = 'event.override.#'
 
 	amqp_channel.queue_bind(pika_on_queue_bind,
 	                        exchange=config.rabbitmq['exchange'],

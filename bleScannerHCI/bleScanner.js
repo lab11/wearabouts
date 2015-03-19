@@ -34,9 +34,9 @@ rmq.on('ready', function () {
 				noble.on('discover', function (peripheral) {
 					manufac_data = '';
 
-					console.log('peripheral discovered (' + peripheral.uuid.match(/../g).join(':') + '):');
-					console.log('\thello my local name is: ' + peripheral.advertisement.localName);
-					console.log('\t\t' + peripheral.rssi);
+                    //console.log('peripheral discovered (' + peripheral.uuid.match(/../g).join(':') + '):');
+					//console.log('\thello my local name is: ' + peripheral.advertisement.localName);
+					//console.log('\t\t' + peripheral.rssi);
 
 					if (peripheral.advertisement.manufacturerData) {
 						manufac_data = peripheral.advertisement.manufacturerData.toString('hex');
@@ -54,6 +54,7 @@ rmq.on('ready', function () {
 					}
 
 					// Publish advertisement to RabbitMQ
+                    console.log(blob['ble_addr'] + '  ' + peripheral.rssi);
 					xch.publish('experimental.scanner.bleScanner.'+mac_address.toUpperCase(), blob);
 				});
 			}
