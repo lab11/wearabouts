@@ -58,8 +58,8 @@ def main( ):
     post_queue = Queue.Queue()
     threads = []
     if USE_RABBITMQ:
-        threads.append(RabbitMQReceiverThread('scanner.#', 'bleAddr', recv_queue, log))
-        threads.append(RabbitMQPoster('wearabouts', post_queue, log=log))
+        threads.append(RabbitMQReceiverThread('experimental.scanner.#', 'bleAddr', recv_queue, log))
+        threads.append(RabbitMQPoster('experimental.wearabouts', post_queue, log=log))
     else:
         threads.append(SocketIOReceiverThread(BLEADDR_PROFILE_ID, {}, 'bleAddr', recv_queue))
         #TODO: Reactivate these once they are written

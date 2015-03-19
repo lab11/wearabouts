@@ -43,8 +43,8 @@ def main( ):
     bleAddr_queue = Queue.Queue()
     wearabouts_queue = Queue.Queue()
     threads = []
-    threads.append(RabbitMQReceiverThread('scanner.bleScanner.#', 'bleAddr', bleAddr_queue, log))
-    threads.append(RabbitMQReceiverThread('wearabouts.#', 'wearabouts', wearabouts_queue, log))
+    threads.append(RabbitMQReceiverThread('experimental.scanner.bleScanner.#', 'bleAddr', bleAddr_queue, log))
+    threads.append(RabbitMQReceiverThread('experimental.wearabouts.#', 'wearabouts', wearabouts_queue, log))
     threads.append(GATDPoster(BLEADDR_POST_ADDR, bleAddr_queue, log))
     threads.append(GATDPoster(WEARABOUTS_POST_ADDR, wearabouts_queue, log))
 
@@ -139,6 +139,7 @@ class GATDPoster(Thread):
             #Note: this line was edited to allow a Receiver to dump right into a Poster
             data = self.msg_queue.get()[1]
             #print("GATD posting data: " + str(data))
+            data['experimental'] = True
 
             # post to GATD
             try:

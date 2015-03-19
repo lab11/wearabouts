@@ -175,7 +175,7 @@ def main():
             rate_limit = False
         elif USE_RABBITMQ:
             log.info(curr_datetime() + "Sending to RabbitMQ")
-            post_thread = RabbitMQPoster('scanner.bleScanner', msg_queue, log=log)
+            post_thread = RabbitMQPoster('experimental.scanner.bleScanner', msg_queue, log=log)
             rate_limit = True
         else:
             log.info(curr_datetime() + "Sending to GATD")

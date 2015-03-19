@@ -54,7 +54,7 @@ rmq.on('ready', function () {
 					}
 
 					// Publish advertisement to RabbitMQ
-					xch.publish('scanner.bleScanner.'+mac_address.toUpperCase(), blob);
+					xch.publish('experimental.scanner.bleScanner.'+mac_address.toUpperCase(), blob);
 				});
 			}
 
