@@ -31,14 +31,6 @@ rmq.on('ready', function () {
 			} else {
 				console.log('Found mac address: ' + mac_address);
 
-				// Actually start receiving BLE advertisements
-				noble.on('stateChange', function (state) {
-					console.log(state);
-					if (state === 'poweredOn') {
-						noble.startScanning([], true);
-					}
-				});
-
 				noble.on('discover', function (peripheral) {
 					manufac_data = '';
 
@@ -51,6 +43,7 @@ rmq.on('ready', function () {
 					}
 
 					blob = {
+						location_str: 'unknown',
 						ble_addr: peripheral.uuid.match(/../g).join(':'),
 						name: peripheral.advertisement.localName,
 						scanner_macAddr: mac_address.toUpperCase(),
@@ -68,8 +61,14 @@ rmq.on('ready', function () {
 		});
 
 	});
+});
 
-
+// Actually start receiving BLE advertisements
+noble.on('stateChange', function (state) {
+    console.log("Starting scan...");
+    if (state === 'poweredOn') {
+        noble.startScanning([], true);
+    }
 });
 
 rmq.on('error', function (e) {

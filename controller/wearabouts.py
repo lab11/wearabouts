@@ -11,6 +11,7 @@ import os
 import urllib2
 import pika
 import argparse
+import traceback
 
 try:
     import socketIO_client as sioc
@@ -68,13 +69,12 @@ def main( ):
 
     # start presence controller
     controller = PresenceController(recv_queue, post_queue, threads, log)
-    #XXX: bring this back once it works
-    #while True:
-    #    try:
-    #        controller.monitor()
-    #    except Exception as e:
-    #        log.error(curr_datetime() + "ERROR - PresenceController: " + str(e))
-    controller.monitor()
+    while True:
+        try:
+            controller.monitor()
+        except Exception as e:
+            log.error(curr_datetime() + "ERROR - PresenceController: " + str(e) + repr(e))
+            log.error(traceback.format_exc())
 
 def curr_datetime():
     return time.strftime("%m/%d/%Y %H:%M:%S ")
@@ -307,7 +307,7 @@ class PresenceController ():
             return
 
         # location parsing
-        if 'location_str' in pkt and pkt['location_str'] == 'demo' or pkt['location_str'] == 'unknown':
+        if 'location_str' in pkt and (pkt['location_str'] == 'demo' or pkt['location_str'] == 'unknown'):
             # find the location string
             if 'scanner_macAddr' in pkt and pkt['scanner_macAddr'] in self.scanner_mapping:
                 pkt['location_str'] = self.scanner_mapping[pkt['scanner_macAddr']][0]

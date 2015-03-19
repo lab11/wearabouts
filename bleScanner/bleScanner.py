@@ -11,6 +11,7 @@ import urllib2
 import logging
 import logging.handlers
 import argparse
+import traceback
 from threading import Thread
 from bleAPI import Packet
 from bleAPI import Exceptions
@@ -187,7 +188,8 @@ def main():
         try:
             scanner.scan()
         except Exception as e:
-            log.error(curr_datetime() + "ERROR - BLEScanner: " + str(e))
+            log.error(curr_datetime() + "ERROR - BLEScanner: " + str(e) + repr(e))
+            log.error(traceback.format_exc())
 
 
 class BLEScanner():

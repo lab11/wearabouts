@@ -266,21 +266,17 @@ class RabbitMQPoster(Thread):
             # look for a packet
             (data, route) = self.msg_queue.get()
 
-            # check that connection is still valid
-            if (self.amqp_conn == None or self.amqp_conn.is_closed or self.amqp_conn.is_closing):
-                self.log.info(curr_datetime() + "INFO - RabbitMQPoster: had to re-open connection")
-                self.amqp_conn.close()
-                self._open_connection()
-
             # post to RabbitMQ
-            #print("\tPosting to route: " + self.route_key+'.'+route.replace(' ', '_').replace('|', '.'))
             try:
                 self.amqp_chan.basic_publish(exchange=config.rabbitmq['exchange'],
                         body=json.dumps(data),
                         routing_key=self.route_key+'.'+route.replace(' ', '_').replace('|', '.'))
             except Exception as e:
-                # don't know how to handle this. Just try continuing...
-                self.log.error(curr_datetime() + "ERROR - RabbitMQPoster: " + str(e) + ' ' + repr(e))
+                # Catch exception. Re-open. Try again
+                self._open_connection()
+                self.amqp_chan.basic_publish(exchange=config.rabbitmq['exchange'],
+                        body=json.dumps(data),
+                        routing_key=self.route_key+'.'+route.replace(' ', '_').replace('|', '.'))
 
             self.msg_queue.task_done()
 
