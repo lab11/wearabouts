@@ -1,42 +1,72 @@
 #!/bin/bash
 # cause sometimes you don't want to do things elegantly and you just need a big stick
+wearabouts_dir="~/weareabouts/"
+accessors_dir="~/accessors"
 
 # grab list of current screens
 screen_list=$(sudo screen -list)
 
-# check for fitbitfinder
-if echo $screen_list | grep -q "fitbitfinder"
+# wearabouts scripts
+if [ -n "$wearabouts_dir" ]
 then
-    echo "fitbitfinder already running"
-else
-    sudo screen -dmS fitbitfinder python /home/brghena/whereabouts/fitbitfinder.py 'University of Michigan|BBB|4908'
-    echo "Started fitbitfinder"
+    cd $wearabouts_dir
+
+    # check for bleScanner
+    if echo $screen_list | grep -q "bleScanner"
+    then
+        echo "bleScanner already running"
+    else
+        cd bleScanner/
+        sudo screen -dmS bleScanner python bleScanner.py --rabbit
+        echo "Started bleScanner"
+        cd ../
+    fi
+
+    # check for controller
+    if echo $screen_list | grep -q "wearabouts"
+    then
+        echo "wearabouts already running"
+    else
+        cd controller/
+        sudo screen -dmS whereaboutsController python wearabouts.py --rabbit
+        echo "Started wearabouts"
+        cd ../
+    fi
+
+    # check for eventGenerator
+    if echo $screen_list | grep -q "eventGenerator"
+    then
+        echo "eventGenerator already running"
+    else
+        cd events/
+        sudo screen -dmS eventGenerator python eventGenerator.py --rabbit
+        echo "Started eventGenerator"
+        cd ../
+    fi
+
+    # check for GATD forwarder
+    if echo $screen_list | grep -q "gatdForwarder"
+    then
+        echo "gatdForwarder already running"
+    else
+        cd gatd/
+        sudo screen -dmS gatdForwarder python gatdForwarder.py --rabbit
+        echo "Started gatdForwarder"
+        cd ../
+    fi
 fi
 
-# check for whereabouts4908
-if echo $screen_list | grep -q "whereabouts4908"
+if [ -n "$accessors_dir" ]
 then
-    echo "whereabouts4908 already running"
-else
-    sudo screen -dmS whereabouts4908 python /home/brghena/whereabouts/whereabouts.py 'University of Michigan|BBB|4908'
-    echo "Started whereabouts4908"
-fi
+    cd $accessors_dir
 
-# check for whereabouts2909
-if echo $screen_list | grep -q "whereabouts2909"
-then
-    echo "whereabouts2909 already running"
-else
-    sudo screen -dmS whereabouts2909 python /home/brghena/whereabouts/whereabouts.py 'University of Michigan|BBB|2909'
-    echo "Started whereabouts2909"
-fi
-
-# check for light control script
-if echo $screen_list | grep -q "light-control"
-then
-    echo "light-control already running"
-else
-    sudo screen -dmS light-control python /home/brghena/apollito/light-control.py 'University of Michigan|BBB|4908'
-    echo "Started light-control"
+    # check for 4908 lighting control
+    if echo $screen_list | grep -q "4908lighting"
+    then
+        echo "4908lighting already running"
+    else
+        sudo screen -dmS 4908lighting forever --minUptime 1000 4908lighting.js 
+        echo "Started 4908lighting"
+    fi
 fi
 
