@@ -46,7 +46,7 @@ def main( ):
     # setup logging
     log = logging.getLogger('wearabouts_log')
     log.setLevel(logging.DEBUG)
-    log_filename = '../logs/weareabouts_log.out'
+    log_filename = '../logs/experimental_weareabouts_log.out'
     handler = logging.handlers.TimedRotatingFileHandler(log_filename,
             when='midnight', backupCount=7)
     log.addHandler(handler)
@@ -188,7 +188,7 @@ class PresenceController ():
             # handle bleAddr data
             if data_type == 'bleAddr':
                 # specific field validity testing
-                if 'avg_rssi' not in pkt or 'rssi' not in pkt or 'scanner_macAddr' not in pkt:
+                if 'rssi' not in pkt or 'scanner_macAddr' not in pkt:
                     self.log.error(curr_datetime() + " Got an invalid ble packet")
                     continue
 
@@ -206,10 +206,13 @@ class PresenceController ():
                             }
 
                 # update user information
-                timestamp = int(round(pkt['time']/1000))
+                timestamp = int(round(pkt['time']))
                 if timestamp > evidence['bleAddr'][scanner]['time']:
                     evidence['bleAddr'][scanner]['time'] = timestamp
-                    evidence['bleAddr'][scanner]['rssi'] = pkt['avg_rssi']
+                    if 'avg_rssi' in pkt:
+                        evidence['bleAddr'][scanner]['rssi'] = pkt['avg_rssi']
+                    else:
+                        evidence['bleAddr'][scanner]['rssi'] = pkt['rssi']
                     evidence['bleAddr'][scanner]['address'] = pkt['ble_addr']
 
                 # locate the user based on this new information. Only relocate
@@ -272,10 +275,12 @@ class PresenceController ():
             #        for 
 
     scanner_mapping = {
-            '00:0C:29:CB:0A:60': ('University of Michigan|BBB|4908', '0'),
-            'C0:3F:D5:6A:A0:C3': ('University of Michigan|BBB|4908', '0'),
-            '78:A5:04:DC:83:7C': ('University of Michigan|BBB|4901', '1'),
-            'D0:39:72:4B:AD:14': ('University of Michigan|BBB|4670', '2')
+            '1C:BA:8C:ED:ED:2A': ('University of Michigan|BBB|4908', '0'),
+            '1C:BA:8C:9B:BC:57': ('University of Michigan|BBB|4901', '1'),
+            'D0:39:72:4B:AD:14': ('University of Michigan|BBB|4670', '2'),
+            '6C:EC:EB:A5:98:E2': ('University of Michigan|BBB|4916', '3'),
+            '1C:BA:8C:ED:E0:B2': ('University of Michigan|BBB|4776', '4'),
+            '6C:EC:EB:9F:70:53': ('USA|Michigan|Ann Arbor|1929 Plymouth Apt 2016', '5')
             }
 
     people_mapping = {

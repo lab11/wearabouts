@@ -32,7 +32,7 @@ def main( ):
     # setup logging
     log = logging.getLogger('forwarder_log')
     log.setLevel(logging.DEBUG)
-    log_filename = '../logs/forwarder_log.out'
+    log_filename = '../logs/experimental_forwarder_log.out'
     handler = logging.handlers.TimedRotatingFileHandler(log_filename,
             when='midnight', backupCount=7)
     log.addHandler(handler)

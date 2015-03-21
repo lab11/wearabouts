@@ -150,7 +150,7 @@ def main():
     # setup logging
     log = logging.getLogger('bleScanner_log')
     log.setLevel(logging.DEBUG)
-    log_filename = '../logs/bleScanner_log_' + str(LOCATION.split('|')[-1]) + '.out'
+    log_filename = '../logs/experimental_bleScanner_log_' + str(LOCATION.split('|')[-1]) + '.out'
     handler = logging.handlers.TimedRotatingFileHandler(log_filename,
             when='midnight', backupCount=7)
     log.addHandler(handler)
