@@ -1,7 +1,7 @@
 #!/bin/bash
 # cause sometimes you don't want to do things elegantly and you just need a big stick
-wearabouts_dir="~/weareabouts/"
-accessors_dir="~/accessors"
+wearabouts_dir="/home/brghena/wearabouts/"
+accessors_dir="/home/brghena/accessors/"
 
 # grab list of current screens
 screen_list=$(sudo screen -list)
@@ -28,7 +28,7 @@ then
         echo "wearabouts already running"
     else
         cd controller/
-        sudo screen -dmS whereaboutsController python wearabouts.py --rabbit
+        sudo screen -dmS wearaboutsController python wearabouts.py --rabbit
         echo "Started wearabouts"
         cd ../
     fi
@@ -65,8 +65,10 @@ then
     then
         echo "4908lighting already running"
     else
+        cd applications/central/
         sudo screen -dmS 4908lighting forever --minUptime 1000 4908lighting.js 
         echo "Started 4908lighting"
+        cd ../
     fi
 fi
 

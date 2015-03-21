@@ -274,6 +274,7 @@ class PresenceController ():
     scanner_mapping = {
             '00:0C:29:CB:0A:60': ('University of Michigan|BBB|4908', '0'),
             'C0:3F:D5:6A:A0:C3': ('University of Michigan|BBB|4908', '0'),
+            '18:A9:05:C1:43:8A': ('University of Michigan|BBB|4908', '0'),
             '78:A5:04:DC:83:7C': ('University of Michigan|BBB|4901', '1'),
             'D0:39:72:4B:AD:14': ('University of Michigan|BBB|4670', '2')
             }
