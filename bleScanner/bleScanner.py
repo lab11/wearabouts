@@ -381,7 +381,8 @@ class BLEScanner():
         if (packet.valid and packet.OK and packet.crcOK and
                 packet.id == EVENT_PACKET and not packet.direction and
                 packet.blePacket.advType in [0, 1, 2, 4, 6] and
-                packet.blePacket.advAddress != None):
+                packet.blePacket.advAddress != None and
+                len(packet.blePacket.advAddress) >= 6):
             ble_addr = "{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}".format(
                     packet.blePacket.advAddress[0],
                     packet.blePacket.advAddress[1],

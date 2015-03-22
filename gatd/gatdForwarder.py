@@ -108,6 +108,7 @@ class RabbitMQReceiverThread (Thread):
                         routing_key = self.route_key)
 
                 amqp_chan.basic_consume(self._on_data, queue_name, no_ack=True)
+                self.log.info(curr_datetime() + "INFO - RabbitMQReceiver: Channel open")
 
                 amqp_chan.start_consuming()
             except Exception as e:
