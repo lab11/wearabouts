@@ -46,7 +46,7 @@ def main( ):
     # setup logging
     log = logging.getLogger('wearabouts_log')
     log.setLevel(logging.DEBUG)
-    log_filename = '../logs/weareabouts_log.out'
+    log_filename = '../logs/wearabouts_log.out'
     handler = logging.handlers.TimedRotatingFileHandler(log_filename,
             when='midnight', backupCount=7)
     log.addHandler(handler)
