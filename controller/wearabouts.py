@@ -46,7 +46,7 @@ def main( ):
     # setup logging
     log = logging.getLogger('wearabouts_log')
     log.setLevel(logging.DEBUG)
-    log_filename = '../logs/experimental_weareabouts_log.out'
+    log_filename = '../logs/experimental_wearabouts_log.out'
     handler = logging.handlers.TimedRotatingFileHandler(log_filename,
             when='midnight', backupCount=7)
     log.addHandler(handler)
@@ -548,7 +548,7 @@ class PresenceController ():
                     'present_by': present_by}
             self.post_queue.put((data, person['location']))
 
-        self.log_status(uniqname, location, present_by)
+        #self.log_status(uniqname, location, present_by)
 
     # some function to go through a single location in a person and figure out if they could be in it
     def determine_presence(self, uniqname, location):

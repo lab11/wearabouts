@@ -112,6 +112,7 @@ class RabbitMQReceiverThread (Thread):
                 amqp_chan.start_consuming()
             except Exception as e:
                 self.log.error(curr_datetime() + "ERROR - RabbitMQReceiver: " + str(e))
+                amqp_conn.close()
 
     def _on_data(self, channel, method, prop, body):
         # data received from rabbitmq. Push to msg_queue
