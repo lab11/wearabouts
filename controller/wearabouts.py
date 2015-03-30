@@ -280,7 +280,7 @@ class PresenceController ():
             'D0:39:72:4B:AD:14': ('University of Michigan|BBB|4670', '2'),
             '6C:EC:EB:A5:98:E2': ('University of Michigan|BBB|4916', '3'),
             '1C:BA:8C:ED:E0:B2': ('University of Michigan|BBB|4776', '4'),
-            '6C:EC:EB:9F:70:53': ('USA|Michigan|Ann Arbor|1929 Plymouth Apt 2016', '5')
+            '6C:EC:EB:9F:70:53': ('USA|Michigan|Ann Arbor|1929 Plymouth', '5')
             }
 
     people_mapping = {
