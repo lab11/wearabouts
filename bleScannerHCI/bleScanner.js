@@ -69,7 +69,7 @@ rmq.on('ready', function () {
                     }
 
                     // check if this packet should actually be transmitted. Rate limit to one per second
-                    if (devices[blob['ble_addr']]['timestamp'] < current_time) {
+                    if (Math.floor(devices[blob['ble_addr']]['timestamp']) < Math.floor(current_time)) {
 
                         // publish advertisement to RabbitMQ
                         console.log(blob['ble_addr'] + '  ' + peripheral.rssi);
