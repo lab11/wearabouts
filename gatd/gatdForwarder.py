@@ -75,6 +75,8 @@ class RabbitMQReceiverThread (Thread):
         self.message_queue = message_queue
         self.log = log
 
+        self.recv_count = 0
+
         # start thread
         print("Running thread")
         self.start()
@@ -111,12 +113,15 @@ class RabbitMQReceiverThread (Thread):
 
                 amqp_chan.start_consuming()
             except Exception as e:
-                self.log.error(curr_datetime() + "ERROR - RabbitMQReceiver: " + str(e))
-                amqp_conn.close()
+                self.log.error(curr_datetime() + "ERROR - RabbitMQReceiver: " + str(e) + repr(e))
 
     def _on_data(self, channel, method, prop, body):
         # data received from rabbitmq. Push to msg_queue
         #print("RabbitMQ got data: " + str(body))
+        self.recv_count += 1
+        if self.recv_count%10000 == 0:
+            self.log.info(curr_datetime() + "INFO - RabbitMQReceiver: Receive count = " + str(self.recv_count))
+
         self.message_queue.put([self.data_type, json.loads(body)])
 
 
@@ -131,6 +136,8 @@ class GATDPoster(Thread):
         self.msg_queue = queue
         self.log = log
 
+        self.post_count = 0
+
         # autostart thread
         self.start()
 
@@ -141,6 +148,10 @@ class GATDPoster(Thread):
             data = self.msg_queue.get()[1]
             #print("GATD posting data: " + str(data))
             data['experimental'] = True
+
+            self.post_count += 1
+            if self.post_count%1000 == 0:
+                self.log.info(curr_datetime() + "INFO - GATDPoster: Post count = " + str(self.post_count))
 
             # post to GATD
             try:
