@@ -150,7 +150,7 @@ class GATDPoster(Thread):
             data['experimental'] = True
 
             self.post_count += 1
-            if self.post_count%1000 == 0:
+            if self.post_count%10000 == 0:
                 self.log.info(curr_datetime() + "INFO - GATDPoster: Post count = " + str(self.post_count))
 
             # post to GATD
