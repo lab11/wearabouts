@@ -300,7 +300,8 @@ class PresenceController ():
             'c4:26:da:a4:72:c3': ('samkuo', 'Ye-Sheng Kuo'),
             'f1:7c:98:6e:b9:d1': ('jdejong', 'Jessica De Jong'),
             'e0:5e:5a:28:85:e3': ('tzachari', 'Thomas Zachariah'),
-            'ca:28:2b:08:f3:f7': ('adkinsjd', 'Josh Adkins')
+            'ca:28:2b:08:f3:f7': ('adkinsjd', 'Josh Adkins'),
+            'fa:38:b5:a6:fe:6e': ('sarparis', 'Sarah Paris'),
             }
 
     def apply_mappings(self, pkt):
