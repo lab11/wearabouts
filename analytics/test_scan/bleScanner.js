@@ -9,7 +9,9 @@ var noble = require('noble');
 var fs = require('fs');
 
 // look for a target device
-var target_ble_addr = 'f9:97:1e:8b:e7:27';
+//var target_ble_addr = 'f9:97:1e:8b:e7:27'; // brghena fitbit
+//var target_ble_addr = 'e8:2c:76:b7:f7:8f'; // nordic beacon
+var target_ble_addr = 'ed:95:16:b8:52:01'; // squall!
 if (process.argv.length == 3) {
     target_ble_addr = process.argv[2];
 }
