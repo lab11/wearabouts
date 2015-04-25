@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Records presence as if only 4908 has a scanner
+# Records presence based on packets from all five rooms
 #   with present meaning any packet seen in the last minute
 #   with absent meaning no packet seen in the last minute
 
@@ -9,9 +9,9 @@ import time
 import operator
 import dataprint
 
-infile = open('rssi_data_raw.dat', 'r')
+infile = open('rssi_data_sorted.dat', 'r')
 
-outfile = open('rssi_data_4908only_seen.dat', 'w')
+outfile = open('rssi_data_allRooms_seen.dat', 'w')
 out_data = []
 
 in_header = True
@@ -88,21 +88,19 @@ for line in infile:
         if data_dict[person]['present_loc'] != -1:
             still_present = False
             absent_time = 0
-            for loc in data_dict[person]:
-                if loc == 'present_loc':
-                    continue
 
-                if (timestamp-data_dict[person][loc]['time']) < rssi_timeout:
-                    still_present = True
-                else:
-                    data_dict[person][loc]['is_present'] = False
-                    if absent_time < (data_dict[person][loc]['time']+rssi_timeout):
-                        absent_time = data_dict[person][loc]['time']+rssi_timeout
+            # if the user is gone from their current loc, they are in none
+            loc = data_dict[person]['present_loc']
+            if (timestamp-data_dict[person][loc]['time']) < rssi_timeout:
+                still_present = True
+            else:
+                absent_time = data_dict[person][loc]['time']+rssi_timeout
+                data_dict[person][loc]['is_present'] = False
 
             if not still_present:
                 # add a data point when the user was still present
-                timestr = time.strftime('%H:%M:%S', time.localtime(absent_time-1))
-                time_data = [timestr, (absent_time-zero_time-1)]
+                timestr = time.strftime('%H:%M:%S', time.localtime(absent_time-0.000001))
+                time_data = [timestr, (absent_time-zero_time-0.000001)]
                 person_data = []
                 for name in ['sarparis', 'samkuo', 'nealjack', 'adkinsjd', 'brghena', 'bpkempke']:
                     if name in data_dict:
@@ -128,9 +126,8 @@ for line in infile:
                 #   with this
                 out_data.append(time_data+person_data)
 
-
-    # only grab data for 4908
-    if loc_id != 0:
+    # valid data must be on campus
+    if loc_id not in [0, 1, 2, 3, 4]:
         continue
 
     # data is valid, enter it
@@ -140,13 +137,16 @@ for line in infile:
         data_dict[uniqname][loc_id] = {'time': 0, 'rssi': [0]}
     data_dict[uniqname][loc_id]['time'] = timestamp
     data_dict[uniqname][loc_id]['rssi'] = rssi
-    data_dict[uniqname][loc_id]['is_present'] = True
 
     # add to output if the state has changed
-    if data_dict[uniqname]['present_loc'] == -1:
-        # record data for the user absent
-        timestr = time.strftime('%H:%M:%S', time.localtime(timestamp-1))
-        time_data = [timestr, (timestamp-zero_time-1)]
+    if loc_id != data_dict[uniqname]['present_loc']:
+        if data_dict[uniqname]['present_loc'] != -1:
+            data_dict[uniqname][data_dict[uniqname]['present_loc']]['is_present'] = False
+        data_dict[uniqname][loc_id]['is_present'] = True
+
+        # add a data point in the old state
+        timestr = time.strftime('%H:%M:%S', time.localtime(timestamp-0.000001))
+        time_data = [timestr, (timestamp-zero_time-0.000001)]
         person_data = []
         for person in ['sarparis', 'samkuo', 'nealjack', 'adkinsjd', 'brghena', 'bpkempke']:
             if person in data_dict:
@@ -167,6 +167,7 @@ for line in infile:
                 person_data.append(-1)
         # record data
         out_data.append(time_data+person_data)
+
 
 # add final line to file
 timestamp = zero_time + 43216

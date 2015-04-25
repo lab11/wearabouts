@@ -4,9 +4,14 @@
 #   with present meaning any packet seen in the last minute
 #   with absent meaning no packet seen in the last minute
 
+import sys
 import time
 import operator
 import dataprint
+
+label = ''
+if len(sys.argv) == 2:
+    label = sys.argv[1]
 
 people = ['sarparis', 'samkuo', 'nealjack', 'adkinsjd', 'brghena', 'bpkempke']
 
@@ -34,7 +39,12 @@ for line in gt_file:
 
 
 # parse all presence changes in wearabouts
-wb_file = open('rssi_data_4908only_seen.dat', 'r')
+in_filename = 'wb_rssi_data.dat'
+if len(sys.argv) >= 2:
+    in_filename = sys.argv[1]
+wb_file = open(in_filename, 'r')
+#wb_file = open('rssi_data_4908only_seen.dat', 'r')
+#wb_file = open('rssi_data_allRooms_seen.dat', 'r')
 prev_state = dict(zip(people,[-1]*6))
 for line in wb_file:
     if line[0] == '#':
@@ -75,30 +85,42 @@ for person in people:
     diff_time = 0.0
     total_time = 0.0
     lab_time = 0.0
-    none_time = 0.0
+    absent_time = 0.0
+
+    match_lab_time = 0.0
+    match_absent_time = 0.0
+    diff_wb_lab_time = 0.0
+    diff_wb_absent_time = 0.0
 
     #print('\n\nPerson: ' + str(person))
 
     for timestamp in sorted(transitions[person].keys()):
 
-        # add the last period to matching time or different time
+        # record the time for the last period into proper bins
+        total_time += timestamp-prev_time
         #print(str(prev_time) + ': ' + str(gt_prev_data) + ' ' + str(wb_prev_data))
         if wb_prev_data == gt_prev_data:
-            match_time += timestamp-prev_time
             #print("match until: " + str(timestamp))
+            match_time += timestamp-prev_time
+            if wb_prev_data == 0:
+                match_lab_time += timestamp-prev_time
+            else:
+                match_absent_time += timestamp-prev_time
         else:
-            diff_time += timestamp-prev_time
             #print("diff until: " + str(timestamp))
-
-        total_time += timestamp-prev_time
-
+            diff_time += timestamp-prev_time
+            if wb_prev_data == 0:
+                diff_wb_lab_time += timestamp-prev_time
+            else:
+                diff_wb_absent_time += timestamp-prev_time
         if gt_prev_data == 0:
             #print("past time in lab")
             lab_time += timestamp-prev_time
-        elif gt_prev_data == -1:
+        else:
             #print("past time nowhere")
-            none_time += timestamp-prev_time
+            absent_time += timestamp-prev_time
 
+        # determine latency. Not implemented
         if False:
             if prev_transition == 'gt':
                 if transitions[person][timestamp][0] == 'gt':
@@ -115,6 +137,7 @@ for person in people:
                     # entry or exit
                     pass
 
+        # update data
         prev_time = timestamp
         #print(str(timestamp) + ' ' + str(transitions[person][timestamp]))
         if transitions[person][timestamp][0] == 'gt':
@@ -128,36 +151,57 @@ for person in people:
 
     # loop over, add remaining data
     timestamp = 43216.0
-    if wb_prev_data == gt_prev_data:
-        match_time += timestamp-prev_time
-        #print("match until: " + str(timestamp))
-    else:
-        diff_time += timestamp-prev_time
-        #print("diff until: " + str(timestamp))
     total_time += timestamp-prev_time
+    if wb_prev_data == gt_prev_data:
+        #print("match until: " + str(timestamp))
+        match_time += timestamp-prev_time
+        if wb_prev_data == 0:
+            match_lab_time += timestamp-prev_time
+        else:
+            match_absent_time += timestamp-prev_time
+    else:
+        #print("diff until: " + str(timestamp))
+        diff_time += timestamp-prev_time
+        if wb_prev_data == 0:
+            diff_wb_lab_time += timestamp-prev_time
+        else:
+            diff_wb_absent_time += timestamp-prev_time
     if gt_prev_data == 0:
         #print("past time in lab")
         lab_time += timestamp-prev_time
     elif gt_prev_data == -1:
         #print("past time nowhere")
-        none_time += timestamp-prev_time
+        absent_time += timestamp-prev_time
 
-    stats[person] = [match_time, diff_time, total_time, lab_time, none_time]
+    stats[person] = [match_time, diff_time, total_time, lab_time, absent_time,
+            match_lab_time, match_absent_time, diff_wb_lab_time, diff_wb_absent_time]
 
 
-total_time = 43216.0 + 1973.0
+total_time = 43216.0 + 1973.0 # = 45189
 accuracy_list = []
-out_data = [['#uniqname', 'match_time', 'diff_time', '% in lab', '% not in lab', 'accuracy']]
+precision_list = []
+recall_list = []
+out_data = []
+#out_data = [['#label', 'uniqname', 'match_time', 'diff_time', 'accuracy',
+#        'true positive', 'true negative', 'false positive', 'false negative',
+#        'precision', 'recall', 'false positive rate']]
 for person in ['sarparis', 'samkuo', 'adkinsjd', 'brghena']:
-    match_time = stats[person][0]
-    diff_time = stats[person][1]
-    total_time = stats[person][2]
-    lab_time = stats[person][3]
-    none_time = stats[person][4]
-    data = [match_time, diff_time, lab_time/total_time, none_time/total_time, match_time/total_time]
-    accuracy_list.append(match_time/total_time)
+    (match_time, diff_time, total_time, lab_time, absent_time,
+            match_lab_time, match_absent_time, diff_wb_lab_time, diff_wb_absent_time) = stats[person]
 
-    out_data.append([person]+data)
+    accuracy = match_time/total_time
+    precision = match_lab_time/(match_lab_time+diff_wb_lab_time)
+    recall = match_lab_time/(match_lab_time+diff_wb_absent_time)
+    false_positive_rate = diff_wb_lab_time/(diff_wb_lab_time+match_absent_time)
+    accuracy_list.append(accuracy)
+    precision_list.append(precision)
+    recall_list.append(recall)
+
+    data = [match_time, diff_time, accuracy,
+        match_lab_time, match_absent_time, diff_wb_lab_time, diff_wb_absent_time,
+        precision, recall, false_positive_rate]
+
+    out_data.append([label, person]+data)
     #print(str(person) + '\t' +
     #        str(match_time) + '\t' + str(diff_time) + '\t'+
     #        str(float(match_time)/(match_time+diff_time)) + '\t' +
@@ -170,5 +214,7 @@ for person in ['sarparis', 'samkuo', 'adkinsjd', 'brghena']:
 
 dataprint.to_newfile('accuracy.stats', out_data, overwrite=True)
 print("Complete")
-print("Avg accuracy: " + str(sum(accuracy_list)/len(accuracy_list)))
+print("Avg accuracy:  " + str(sum(accuracy_list)/len(accuracy_list)))
+print("Avg precision: " + str(sum(precision_list)/len(precision_list)))
+print("Avg recall:    " + str(sum(recall_list)/len(recall_list)))
 

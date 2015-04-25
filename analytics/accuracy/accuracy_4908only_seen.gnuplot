@@ -1,14 +1,14 @@
 set terminal postscript enhanced eps color font "Helvetica,14" size 6in,6in
-set output "accuracy.eps"
+set output "accuracy_4908only_seen.eps"
 
 wearabouts_file = "rssi_data_4908only_seen.dat"
 
-set style line 1 lt 2 ps 0.5 pt 7 lw 2 lc rgb "#7e2f8e" # purple
-set style line 2 lt 2 ps 0.5 pt 7 lw 2 lc rgb "#0072bd" # blue
-set style line 3 lt 2 ps 0.5 pt 7 lw 2 lc rgb "#d95319" # orange
-set style line 4 lt 2 ps 0.5 pt 7 lw 2 lc rgb "#77ac30" # green
-set style line 5 lt 2 ps 0.5 pt 7 lw 2 lc rgb "#4dbeee" # light-blue
-set style line 6 lt 2 ps 0.5 pt 7 lw 2 lc rgb "#a2142f" # red
+set style line 1 lt 2 ps 0.5 pt 7 lw 3 lc rgb "black" #"#7e2f8e" # purple
+set style line 2 lt 2 ps 0.5 pt 7 lw 3 lc rgb "black" #"#0072bd" # blue
+set style line 3 lt 2 ps 0.5 pt 7 lw 3 lc rgb "black" #"#d95319" # orange
+set style line 4 lt 2 ps 0.5 pt 7 lw 3 lc rgb "black" #"#77ac30" # green
+set style line 5 lt 2 ps 0.5 pt 7 lw 3 lc rgb "black" #"#4dbeee" # light-blue
+set style line 6 lt 2 ps 0.5 pt 7 lw 3 lc rgb "black" #"#a2142f" # red
 set style line 11 lt 1 ps 0.5 pt 7 lw 0.5 lc rgb "#7e2f8e" # purple
 set style line 12 lt 1 ps 0.5 pt 7 lw 0.5 lc rgb "#0072bd" # blue
 set style line 13 lt 1 ps 0.5 pt 7 lw 0.5 lc rgb "#d95319" # orange
