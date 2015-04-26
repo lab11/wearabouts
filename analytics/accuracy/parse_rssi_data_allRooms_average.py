@@ -11,7 +11,7 @@ import dataprint
 
 infile = open('rssi_data_sorted.dat', 'r')
 
-outfile = open('rssi_data_allRooms_threshold.dat', 'w')
+outfile = open('rssi_data_allRooms_average.dat', 'w')
 out_data = []
 
 in_header = True
@@ -32,9 +32,14 @@ rssi_threshold = -85
 if len(sys.argv) >= 3:
     rssi_threshold = int(sys.argv[2])
 
-by_newest_time = True
+# minimum number of samples
+by_min_samples = False
 if len(sys.argv) >= 4:
-    by_newest_time = (sys.argv[3] == 'True')
+    by_min_samples = (sys.argv[3] == 'True')
+
+min_sample_count = 10
+if len(sys.argv) >= 5:
+    min_sample_count = int(sys.argv[4])
 
 scanner_mapping = {
         '1C:BA:8C:ED:ED:2A': ('University of Michigan|BBB|4908', '0'),
@@ -72,9 +77,19 @@ people_mapping = {
 
 data_dict = {}
 
-
-def locate(time, data, new_loc):
+# only runs on a single person at a time
+def locate(time, data, new_loc, selection_count):
     curr_loc = data['present_loc']
+
+    # remove all data points that are no longer valid
+    #   timeout is now signified by an empty list
+    for loc in data:
+        if loc == 'present_loc':
+            continue
+
+        while len(data[loc]['time']) > 0 and (time-data[loc]['time'][0]) > rssi_timeout:
+            data[loc]['time'].pop(0)
+            data[loc]['rssi'].pop(0)
 
     # find all possibly valid locations
     possible_locs = []
@@ -82,54 +97,49 @@ def locate(time, data, new_loc):
         if loc == 'present_loc':
             continue
 
-        if (time-data[loc]['time']) > rssi_timeout:
+        if by_min_samples and len(data[loc]['time']) < min_sample_count:
+            data[loc]['is_present'] = False
+        elif len(data[loc]['time']) == 0:
             data[loc]['is_present'] = False
         else:
-            if data[loc]['rssi'] < rssi_threshold:
+            avg_rssi = sum(data[loc]['rssi'])/len(data[loc]['rssi'])
+            if avg_rssi < rssi_threshold:
                 data[loc]['is_present'] = False
             else:
                 data[loc]['is_present'] = True
                 possible_locs.append(loc)
 
-    if by_newest_time:
-        # select between possibly valid locations
-        #   chooses based on most recent packet
-        most_recent_time = 0
-        best_loc = -1
-        for loc in possible_locs:
-            if data[loc]['time'] > most_recent_time:
-                most_recent_time = data[loc]['time']
+    if len(possible_locs) > 1:
+        selection_count += 1
+
+    # select between possibly valid locations
+    highest_rssi = -200
+    most_recent_time = 0
+    best_loc = -1
+    for loc in possible_locs:
+        avg_rssi = sum(data[loc]['rssi'])/len(data[loc]['rssi'])
+        if avg_rssi > highest_rssi:
+            # return best rssi
+            highest_rssi = avg_rssi
+            most_recent_time = max(data[loc]['time'])
+            best_loc = loc
+        elif avg_rssi == highest_rssi:
+            if loc == curr_loc:
+                # return current location if tied with best rssi
+                most_recent_time = max(data[loc]['time'])
                 best_loc = loc
-            elif data[loc]['time'] == most_recent_time and loc == new_loc:
-                best_loc = loc
-    else:
-        # select between possibly valid locations
-        #   chooses based on highest rssi, then time
-        highest_rssi = -200
-        most_recent_time = 0
-        best_loc = -1
-        for loc in possible_locs:
-            if data[loc]['rssi'] > highest_rssi:
-                # return best rssi
-                highest_rssi = data[loc]['rssi']
-                most_recent_time = data[loc]['time']
-                best_loc = loc
-            elif data[loc]['rssi'] == highest_rssi:
-                if loc == curr_loc:
-                    # return current location if tied with best rssi
+            elif best_loc != curr_loc:
+                if max(data[loc]['time']) > most_recent_time:
+                    # return best rssi with newest time
                     most_recent_time = data[loc]['time']
                     best_loc = loc
-                elif best_loc != curr_loc:
-                    if data[loc]['time'] > most_recent_time:
-                        most_recent_time = data[loc]['time']
-                        best_loc = loc
-                    elif data[loc]['time'] == most_recent_time and loc == new_loc:
-                        #print("This shouldn't happen...") # this totally happens!
-                        best_loc = loc
+                elif max(data[loc]['time']) == most_recent_time and loc == new_loc:
+                    # return best rssi with newest time and current incoming packet
+                    best_loc = loc
 
-    return best_loc
+    return (best_loc, selection_count)
 
-
+selection_count = 0
 for line in infile:
     line_num += 1
 
@@ -155,54 +165,51 @@ for line in infile:
 
     # see if there were any timeouts since last timestamp
     for person in data_dict:
-        first_time = True
         # check if the present loc has timed out
         #   this needs to be a loop to handle cascading timeouts where the previous
         #   location is no longer valid, but a new one is
         change_time = 0
         if data_dict[person]['present_loc'] != -1:
-            change_time = data_dict[person][data_dict[person]['present_loc']]['time']
+            change_time = min(data_dict[person][data_dict[person]['present_loc']]['time'])
         while (data_dict[person]['present_loc'] != -1 and (timestamp-change_time) > rssi_timeout):
 
-            if first_time:
-                first_time = False
-            else:
-                pass
-                #print("VINDICATION") # this does occur, though seldomly
-
-            # timeout occured. Add a data point when still present
+            # advance time to see if timeouts change location
             absent_time = change_time+rssi_timeout
-            timestr = time.strftime('%H:%M:%S', time.localtime(absent_time-0.000001))
-            time_data = [timestr, (absent_time-zero_time-0.000001)]
-            person_data = []
-            for name in ['sarparis', 'samkuo', 'nealjack', 'adkinsjd', 'brghena', 'bpkempke']:
-                if name in data_dict:
-                    person_data.append(data_dict[name]['present_loc'])
-                else:
-                    person_data.append(-1)
-            # record data
-            out_data.append(time_data+person_data)
+            (new_loc, selection_count) = locate(absent_time+0.000001, data_dict[person], -1, selection_count)
 
-            # actually make the change
-            absent_time += 0.000001
-            new_loc = locate(absent_time, data_dict[person], -1)
-            data_dict[person]['present_loc'] = new_loc
+            # check if something changed
+            if new_loc != data_dict[person]['present_loc']:
+                # change occurred. At point at old state
+                timestr = time.strftime('%H:%M:%S', time.localtime(absent_time-0.000001))
+                time_data = [timestr, (absent_time-zero_time-0.000001)]
+                person_data = []
+                for name in ['sarparis', 'samkuo', 'nealjack', 'adkinsjd', 'brghena', 'bpkempke']:
+                    if name in data_dict:
+                        person_data.append(data_dict[name]['present_loc'])
+                    else:
+                        person_data.append(-1)
+                # record data
+                out_data.append(time_data+person_data)
 
-            # add new data point
-            timestr = time.strftime('%H:%M:%S', time.localtime(absent_time))
-            time_data = [timestr, (absent_time-zero_time)]
-            person_data = []
-            for name in ['sarparis', 'samkuo', 'nealjack', 'adkinsjd', 'brghena', 'bpkempke']:
-                if name in data_dict:
-                    person_data.append(data_dict[name]['present_loc'])
-                else:
-                    person_data.append(-1)
-            # record data
-            out_data.append(time_data+person_data)
+                # actually make the change
+                absent_time += 0.000001
+                data_dict[person]['present_loc'] = new_loc
+
+                # add new data point
+                timestr = time.strftime('%H:%M:%S', time.localtime(absent_time))
+                time_data = [timestr, (absent_time-zero_time)]
+                person_data = []
+                for name in ['sarparis', 'samkuo', 'nealjack', 'adkinsjd', 'brghena', 'bpkempke']:
+                    if name in data_dict:
+                        person_data.append(data_dict[name]['present_loc'])
+                    else:
+                        person_data.append(-1)
+                # record data
+                out_data.append(time_data+person_data)
 
             # advance time step
             if new_loc != -1:
-                change_time = data_dict[person][data_dict[person]['present_loc']]['time']
+                change_time = min(data_dict[person][data_dict[person]['present_loc']]['time'])
 
 
     # valid data must be on campus
@@ -213,12 +220,12 @@ for line in infile:
     if uniqname not in data_dict:
         data_dict[uniqname] = {'present_loc': -1}
     if loc_id not in data_dict[uniqname]:
-        data_dict[uniqname][loc_id] = {'time': 0, 'rssi': [0]}
-    data_dict[uniqname][loc_id]['time'] = timestamp
-    data_dict[uniqname][loc_id]['rssi'] = rssi
+        data_dict[uniqname][loc_id] = {'time': [0], 'rssi': [0]}
+    data_dict[uniqname][loc_id]['time'].append(timestamp)
+    data_dict[uniqname][loc_id]['rssi'].append(rssi)
 
-    # see if things changed
-    new_loc = locate(timestamp, data_dict[uniqname], loc_id)
+    # see if things changed with new data point
+    (new_loc, selection_count) = locate(timestamp, data_dict[uniqname], loc_id, selection_count)
     #print("New data: " + str(timestamp-zero_time) + ' ' + str(loc_id) + ' ' + str(rssi) + ' ' + str(new_loc))
     if new_loc != data_dict[uniqname]['present_loc']:
         # add a data point in the old state
@@ -249,53 +256,51 @@ for line in infile:
 # look for timeouts between end of data and end of time
 timestamp = zero_time + 43216
 for person in data_dict:
-    first_time = True
     # check if the present loc has timed out
     #   this needs to be a loop to handle cascading timeouts where the previous
     #   location is no longer valid, but a new one is
     change_time = 0
     if data_dict[person]['present_loc'] != -1:
-        change_time = data_dict[person][data_dict[person]['present_loc']]['time']
+        change_time = min(data_dict[person][data_dict[person]['present_loc']]['time'])
     while (data_dict[person]['present_loc'] != -1 and (timestamp-change_time) > rssi_timeout):
 
-        if first_time:
-            first_time = False
-        else:
-            print("VINDICATION")
-
-        # timeout occured. Add a data point when still present
+        # advance time to see if timeouts change location
         absent_time = change_time+rssi_timeout
-        timestr = time.strftime('%H:%M:%S', time.localtime(absent_time-0.000001))
-        time_data = [timestr, (absent_time-zero_time-0.000001)]
-        person_data = []
-        for name in ['sarparis', 'samkuo', 'nealjack', 'adkinsjd', 'brghena', 'bpkempke']:
-            if name in data_dict:
-                person_data.append(data_dict[name]['present_loc'])
-            else:
-                person_data.append(-1)
-        # record data
-        out_data.append(time_data+person_data)
+        (new_loc, selection_count) = locate(absent_time+0.000001, data_dict[person], -1, selection_count)
 
-        # actually make the change
-        absent_time += 0.000001
-        new_loc = locate(absent_time, data_dict[person])
-        data_dict[person]['present_loc'] = new_loc
+        # check if something changed
+        if new_loc != data_dict[person]['present_loc']:
+            # change occurred. At point at old state
+            timestr = time.strftime('%H:%M:%S', time.localtime(absent_time-0.000001))
+            time_data = [timestr, (absent_time-zero_time-0.000001)]
+            person_data = []
+            for name in ['sarparis', 'samkuo', 'nealjack', 'adkinsjd', 'brghena', 'bpkempke']:
+                if name in data_dict:
+                    person_data.append(data_dict[name]['present_loc'])
+                else:
+                    person_data.append(-1)
+            # record data
+            out_data.append(time_data+person_data)
 
-        # add new data point
-        timestr = time.strftime('%H:%M:%S', time.localtime(absent_time))
-        time_data = [timestr, (absent_time-zero_time)]
-        person_data = []
-        for name in ['sarparis', 'samkuo', 'nealjack', 'adkinsjd', 'brghena', 'bpkempke']:
-            if name in data_dict:
-                person_data.append(data_dict[name]['present_loc'])
-            else:
-                person_data.append(-1)
-        # record data
-        out_data.append(time_data+person_data)
+            # actually make the change
+            absent_time += 0.000001
+            data_dict[person]['present_loc'] = new_loc
+
+            # add new data point
+            timestr = time.strftime('%H:%M:%S', time.localtime(absent_time))
+            time_data = [timestr, (absent_time-zero_time)]
+            person_data = []
+            for name in ['sarparis', 'samkuo', 'nealjack', 'adkinsjd', 'brghena', 'bpkempke']:
+                if name in data_dict:
+                    person_data.append(data_dict[name]['present_loc'])
+                else:
+                    person_data.append(-1)
+            # record data
+            out_data.append(time_data+person_data)
 
         # advance time step
         if new_loc != -1:
-            change_time = data_dict[person][data_dict[person]['present_loc']]['time']
+            change_time = min(data_dict[person][data_dict[person]['present_loc']]['time'])
 
 
 # data has reached the end, place last point
@@ -319,6 +324,7 @@ out_data.insert(0, ['#time', 'seconds', 'sarparis', 'samkuo', 'nealjack', 'adkin
 dataprint.to_file(outfile, out_data)
 
 print("Complete")
+print("Selection count: " + str(selection_count))
 infile.close()
 outfile.close()
 
