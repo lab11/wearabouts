@@ -638,7 +638,7 @@ class RabbitMQReceiverThread (Thread):
 
                 amqp_chan.start_consuming()
             except Exception as e:
-                self.log.error(curr_datetime() + "ERROR - RabbitMQReceiver: " + str(e))
+                self.log.error(curr_datetime() + "ERROR - RabbitMQReceiver: " + str(e) + ' ' + repr(e))
 
     def _on_data(self, channel, method, prop, body):
         # data received from rabbitmq. Push to msg_queue
@@ -787,7 +787,7 @@ class RabbitMQPoster(Thread):
 
                     self.msg_queue.task_done()
             except Exception as e:
-                self.log.error(curr_datetime() + "ERROR - RabbitMQPoster: " + str(e))
+                self.log.error(curr_datetime() + "ERROR - RabbitMQPoster: " + str(e) + ' ' + repr(e))
 
 
 if __name__=="__main__":
