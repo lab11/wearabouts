@@ -26,7 +26,7 @@ var file = fs.createWriteStream("rssi.dat");
 // start process once file is writeable
 file.once('open', function(fd) {
         // file header
-        file.write('# time\t\trssi');
+        file.write('# time\t\trssi\n');
 
 		// Use our MAC address as a source identifier for this scanner
 		getmac.getMac(function (err, mac_address) {

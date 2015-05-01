@@ -34,7 +34,7 @@ def main( ):
     # setup logging
     log = logging.getLogger('forwarder_log')
     log.setLevel(logging.DEBUG)
-    log_filename = '../logs/experimental_analyzer.out'
+    log_filename = '../../logs/experimental_analyzer.out'
     handler = logging.handlers.TimedRotatingFileHandler(log_filename,
             when='midnight', backupCount=7)
     log.addHandler(handler)
@@ -64,6 +64,8 @@ def main( ):
     start_time = time.time()
     dat_file.write('# Start time = ' + str(start_time) + '\n')
 
+    old_num_packets = -1
+
     while True:
 
         data_type = 'None'
@@ -81,7 +83,9 @@ def main( ):
                     sys.exit(1)
 
         # print status to user
-        if (time.time() - last_print_time) > 1:
+        #if (time.time() - last_print_time) > 1:
+        if (num_packets%100) == 0 and num_packets != old_num_packets:
+            old_num_packets = num_packets
             last_print_time = time.time()
             print(str(time.time() - start_time) + ' - Number of packets: ' + str(num_packets))
         
@@ -93,14 +97,23 @@ def main( ):
                 'ble_addr' not in pkt or 'location_id' not in pkt):
             continue
 
-        # check for a specific BLE address
-        #print(pkt['ble_addr'])
-        if pkt['ble_addr'] != target_ble_addr:
+        # only save packets that correspond to the measured rooms
+        if pkt['location_str'].split('|')[-1] not in ['4908', '4901', '4670', '4916', '4776']:
             continue
 
+        # only save packets that correspond to real people
+        if 'uniqname' not in pkt:
+            continue
+
+        # check for a specific BLE address
+        #print(pkt['ble_addr'])
+        #if pkt['ble_addr'] != target_ble_addr:
+        #    continue
+
         # print data to file
+
         num_packets += 1
-        data = [[pkt['time']-start_time, pkt['rssi'], pkt['location_id'], pkt['location_str'].split('|')[-1]]]
+        data = [[pkt['time']-start_time, pkt['ble_addr'], pkt['rssi'], pkt['location_id'], pkt['location_str'].split('|')[-1]]]
         dataprint.to_file(dat_file, data)
 
 scanner_mapping = {
@@ -133,7 +146,8 @@ people_mapping = {
         'c4:26:da:a4:72:c3': ('samkuo', 'Ye-Sheng Kuo'),
         'f1:7c:98:6e:b9:d1': ('jdejong', 'Jessica De Jong'),
         'e0:5e:5a:28:85:e3': ('tzachari', 'Thomas Zachariah'),
-        'ca:28:2b:08:f3:f7': ('adkinsjd', 'Josh Adkins')
+        'ca:28:2b:08:f3:f7': ('adkinsjd', 'Josh Adkins'),
+        'fa:38:b5:a6:fe:6e': ('sarparis', 'Sarah Paris'),
         }
 
 def apply_mappings(pkt):

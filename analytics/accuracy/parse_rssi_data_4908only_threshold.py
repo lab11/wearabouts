@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Records presence based on packets from all five rooms
+# Records presence based on packets from 4908 only
 #   with present meaning a packet seen above rssi threshold in the last minute
 #   with absent meaning no packet seen above rssi threshold n the last minute
 
@@ -11,7 +11,7 @@ import dataprint
 
 infile = open('rssi_data_sorted.dat', 'r')
 
-outfile = open('rssi_data_allRooms_threshold.dat', 'w')
+outfile = open('rssi_data_4908only_threshold.dat', 'w')
 out_data = []
 
 in_header = True
@@ -205,8 +205,8 @@ for line in infile:
                 change_time = data_dict[person][data_dict[person]['present_loc']]['time']
 
 
-    # valid data must be on campus
-    if loc_id not in [0, 1, 2, 3, 4]:
+    # valid data in lab only
+    if loc_id not in [0]:
         continue
 
     # data is valid, enter it

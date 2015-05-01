@@ -9,9 +9,19 @@ import time
 import operator
 import dataprint
 
-label = ''
-if len(sys.argv) == 2:
-    label = sys.argv[1]
+label = ['']
+if len(sys.argv) >= 3:
+    label = [sys.argv[2]]
+if len(sys.argv) >= 4:
+    label.append(sys.argv[3])
+if len(sys.argv) >= 5:
+    label.append(sys.argv[4])
+
+training_start = 25200
+training_mode = False
+if len(sys.argv) >= 6:
+    print("Training")
+    training_mode = (sys.argv[5] == 'True')
 
 people = ['sarparis', 'samkuo', 'nealjack', 'adkinsjd', 'brghena', 'bpkempke']
 
@@ -106,6 +116,17 @@ for person in people:
     #print('\n\nPerson: ' + str(person))
 
     for timestamp in sorted(transitions[person].keys()):
+
+        if training_mode and timestamp < training_start:
+            # do not evaluate data until start of training period, just update
+            #   previous data values until we get there
+            prev_time = timestamp
+            if transitions[person][timestamp][0] == 'gt':
+                gt_prev_data = transitions[person][timestamp][2]
+            else:
+                wb_prev_data = transitions[person][timestamp][2]
+            continue
+
 
         # record the time for the last period into proper bins
         total_time += timestamp-prev_time
@@ -312,10 +333,14 @@ accuracy_list = []
 precision_list = []
 recall_list = []
 out_data = []
+fpr_list = []
 #out_data = [['#label', 'uniqname', 'match_time', 'diff_time', 'accuracy',
 #        'true positive', 'true negative', 'false positive', 'false negative',
 #        'precision', 'recall', 'false positive rate']]
-for person in ['sarparis', 'samkuo', 'adkinsjd', 'brghena']:
+valid_people = ['sarparis', 'samkuo', 'adkinsjd', 'brghena']
+if training_mode:
+    valid_people = ['samkuo', 'adkinsjd', 'brghena']
+for person in valid_people:
     (match_time, diff_time, total_time,
             match_lab_time, match_absent_time, diff_wb_lab_time, diff_wb_absent_time,
             missed_events, avg_missed_duration, false_events, avg_false_duration,
@@ -328,6 +353,7 @@ for person in ['sarparis', 'samkuo', 'adkinsjd', 'brghena']:
     accuracy_list.append(accuracy)
     precision_list.append(precision)
     recall_list.append(recall)
+    fpr_list.append(false_positive_rate)
     missed_list.append(missed_events)
     missed_duration_list.append(avg_missed_duration)
     false_list.append(false_events)
@@ -341,7 +367,7 @@ for person in ['sarparis', 'samkuo', 'adkinsjd', 'brghena']:
         missed_events, avg_missed_duration, false_events, avg_false_duration,
         avg_entry_latency, avg_exit_latency]
 
-    out_data.append([label, person]+data)
+    out_data.append(label+[person]+data)
     #print(str(person) + '\t' +
     #        str(match_time) + '\t' + str(diff_time) + '\t'+
     #        str(float(match_time)/(match_time+diff_time)) + '\t' +
@@ -352,7 +378,7 @@ for person in ['sarparis', 'samkuo', 'adkinsjd', 'brghena']:
     #        #str(none_time) + '\t' +
     #        str(none_time/total_time))
 
-dataprint.to_newfile('accuracy.stats', out_data, overwrite=True)
+#dataprint.to_newfile('accuracy.stats', out_data, overwrite=True)
 print("Complete")
 print("False events: " + str(sum(false_list)))
 #print(str(false_duration_list))
@@ -368,3 +394,19 @@ print("Avg accuracy:  " + str(sum(accuracy_list)/len(accuracy_list)))
 print("Avg precision: " + str(sum(precision_list)/len(precision_list)))
 print("Avg recall:    " + str(sum(recall_list)/len(recall_list)))
 
+def median(l):
+    if len(l) == 0:
+        return 0
+    if len(l)%2 == 0:
+        return (l[len(l)/2] + l[len(l)/2+1])/2.0
+    else:
+        return l[len(l)/2]
+
+dataprint.to_newfile('accuracy.stats', [label +
+    [sum(accuracy_list)/len(accuracy_list), sum(precision_list)/len(precision_list),
+        sum(recall_list)/len(recall_list), sum(fpr_list)/len(fpr_list),
+        sum(false_list), median(false_duration_list),
+        sum(missed_list), median(missed_duration_list),
+        median(entry_latency_list), median(exit_latency_list),
+        ]],
+    overwrite=True)

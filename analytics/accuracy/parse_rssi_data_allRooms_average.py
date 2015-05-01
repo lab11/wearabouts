@@ -213,6 +213,7 @@ for line in infile:
 
 
     # valid data must be on campus
+    #if loc_id not in [0]:
     if loc_id not in [0, 1, 2, 3, 4]:
         continue
 
