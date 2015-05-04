@@ -46,7 +46,7 @@ def main( ):
     # setup logging
     log = logging.getLogger('wearabouts_log')
     log.setLevel(logging.DEBUG)
-    log_filename = '../logs/experimental_wearabouts_log.out'
+    log_filename = '../logs/test_experimental_wearabouts_log.out'
     handler = logging.handlers.TimedRotatingFileHandler(log_filename,
             when='midnight', backupCount=7)
     log.addHandler(handler)
@@ -59,7 +59,7 @@ def main( ):
     threads = []
     if USE_RABBITMQ:
         threads.append(RabbitMQReceiverThread('experimental.scanner.#', 'bleAddr', recv_queue, log))
-        threads.append(RabbitMQPoster('experimental.wearabouts', post_queue, log=log))
+        threads.append(RabbitMQPoster('experimental.oneRoom.wearabouts', post_queue, log=log))
     else:
         threads.append(SocketIOReceiverThread(BLEADDR_PROFILE_ID, {}, 'bleAddr', recv_queue))
         #TODO: Reactivate these once they are written
@@ -154,6 +154,10 @@ class PresenceController ():
                 self.log.error(curr_datetime() + 
                         "ERROR - No full_name in packet " + str(pkt))
                 pkt['full_name'] = pkt['uniqname']
+
+            # grab data from 4908 only
+            if pkt['location_str'].split('|')[-1] != '4908':
+                continue
 
             # packet is definitely valid
             self.last_packet = time.time()
@@ -450,7 +454,7 @@ class PresenceController ():
             else:
                 # location is unoccupied
                 empty_loc['location_str'] = location
-                self.post_queue.put((empty_loc.copy(), location))
+                self.post_queue.put((empty_loc, location))
 
     # some function to go through each location in a person and figure out where they are
     #   also posts if there is a change
@@ -822,7 +826,7 @@ class RabbitMQPoster(Thread):
                     (data, route) = self.msg_queue.get()
 
                     # post to RabbitMQ
-                    #print("\tPosting to route: " + self.route_key+'.'+route.replace(' ', '_').replace('|', '.') + '\n\t' + str(data))
+                    #print("\tPosting to route: " + self.route_key+'.'+route.replace(' ', '_').replace('|', '.'))
                     self.amqp_chan.basic_publish(exchange=config.rabbitmq['exchange'],
                                         body=json.dumps(data),
                                         routing_key=self.route_key+'.'+route.replace(' ', '_').replace('|', '.'))

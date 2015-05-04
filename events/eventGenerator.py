@@ -44,7 +44,7 @@ def main( ):
     # setup logging
     log = logging.getLogger('eventGenerator_log')
     log.setLevel(logging.DEBUG)
-    log_filename = '../logs/eventGenerator_log.out'
+    log_filename = '../logs/experimental_eventGenerator_log.out'
     handler = logging.handlers.TimedRotatingFileHandler(log_filename,
             when='midnight', backupCount=7)
     log.addHandler(handler)
@@ -56,8 +56,8 @@ def main( ):
     post_queue = Queue.Queue()
     threads = []
     if USE_RABBITMQ:
-        threads.append(RabbitMQReceiverThread('wearabouts.#', 'wearabouts', recv_queue, log))
-        threads.append(RabbitMQPoster('event.presence', post_queue, log=log))
+        threads.append(RabbitMQReceiverThread('experimental.wearabouts.#', 'wearabouts', recv_queue, log))
+        threads.append(RabbitMQPoster('experimental.event.presence', post_queue, log=log))
     else:
         print("Events not supported in GATD currently. Run with --rabbit")
         sys.exit(1)
