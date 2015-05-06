@@ -375,7 +375,7 @@ class PresenceController ():
                 if num_packets > 0:
                     last_packet_ago = int(round(time.time()-data['times'][-1]))
 
-                loc_str = str(location.split('|')[-1]) + '-' + str(scanner)
+                loc_str = str(location.split('|')[-1][0:4]) + '-' + str(scanner)
 
                 print_str += '\t' + loc_str + \
                         "\tAvg RSSI: " + str(avg_rssi) + \
@@ -383,7 +383,8 @@ class PresenceController ():
                         "\tAgo: " + str(last_packet_ago) + '\n'
 
         # actually print the data
-        print(print_str)
+        #   skips the last newline
+        print(print_str[:-1])
 
     def in_location(self, uniqname, location):
         if (uniqname in self.presences):
