@@ -94,9 +94,9 @@ KNOWN_DEVICES = {
         'ef:b1:85:b1:37:d4': 'Taped Nordic Tag',
         'e8:2c:76:b7:f7:8f': "Noah's Nordic Tag",
         '70:ee:50:05:27:24': 'June UV',
-        'fa:38:b5:a6:fe:6e': ('sarparis', 'Sarah Paris'),
-        'c8:ee:59:3a:a0:16': ('azhen', 'Alan Zhen'),
-        'dd:b3:e2:6d:92:2b': ('ppannuto', 'Pat Pannuto'),
+        'fa:38:b5:a6:fe:6e': 'Sarah Paris',
+        'c8:ee:59:3a:a0:16': 'Alan Zhen',
+        'dd:b3:e2:6d:92:2b': 'Pat Pannuto HR',
         }
 
 def main():
