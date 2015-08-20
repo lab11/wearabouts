@@ -1,9 +1,5 @@
 #!/usr/bin/env python
 
-# Records presence based on packets from all five rooms
-#   with present meaning a packet seen above rssi threshold in the last minute
-#   with absent meaning no packet seen above rssi threshold n the last minute
-
 import sys
 import time
 import operator
@@ -11,7 +7,7 @@ import dataprint
 
 infile = open('rssi_data_sorted.dat', 'r')
 
-outfile = open('training_allRooms_average.dat', 'w')
+outfile = open('rssi_data_allRooms_count.dat', 'w')
 out_data = []
 
 in_header = True
@@ -24,20 +20,20 @@ curr_sec = 53
 
 start_time = 1429591142.59
 
-rssi_timeout = 60
+rssi_timeout = 90
 if len(sys.argv) >= 2:
     rssi_timeout = int(sys.argv[1])
 
-rssi_threshold = -85
+rssi_threshold = -150
 if len(sys.argv) >= 3:
     rssi_threshold = int(sys.argv[2])
 
 # minimum number of samples
-by_min_samples = False
+by_max_count = True
 if len(sys.argv) >= 4:
-    by_min_samples = (sys.argv[3] == 'True')
+    by_max_count = (sys.argv[3] == 'True')
 
-min_sample_count = 10
+min_sample_count = 28
 if len(sys.argv) >= 5:
     min_sample_count = int(sys.argv[4])
 
@@ -97,35 +93,28 @@ def locate(time, data, new_loc, selection_count):
         if loc == 'present_loc':
             continue
 
-        if by_min_samples and len(data[loc]['time']) < min_sample_count:
-            data[loc]['is_present'] = False
-        elif len(data[loc]['time']) == 0:
+        if len(data[loc]['time']) < min_sample_count:
             data[loc]['is_present'] = False
         else:
-            avg_rssi = sum(data[loc]['rssi'])/len(data[loc]['rssi'])
-            if avg_rssi < rssi_threshold:
-                data[loc]['is_present'] = False
-            else:
-                data[loc]['is_present'] = True
-                possible_locs.append(loc)
+            data[loc]['is_present'] = True
+            possible_locs.append(loc)
 
     if len(possible_locs) > 1:
         selection_count += 1
 
     # select between possibly valid locations
-    highest_rssi = -200
+    highest_count = 0
     most_recent_time = 0
     best_loc = -1
     for loc in possible_locs:
-        avg_rssi = sum(data[loc]['rssi'])/len(data[loc]['rssi'])
-        if avg_rssi > highest_rssi:
-            # return best rssi
-            highest_rssi = avg_rssi
+        count = len(data[loc]['time'])
+        if count > highest_count:
+            highest_count = count
             most_recent_time = max(data[loc]['time'])
             best_loc = loc
-        elif avg_rssi == highest_rssi:
+        elif count == highest_count:
             if loc == curr_loc:
-                # return current location if tied with best rssi
+                # return current location if tied with best
                 most_recent_time = max(data[loc]['time'])
                 best_loc = loc
             elif best_loc != curr_loc:
@@ -157,7 +146,6 @@ for line in infile:
 
     # only grab data from the appropriate time
     if timestamp < (zero_time - 1980) or timestamp > (zero_time + 43216):
-    #if timestamp < (zero_time + 25200) or timestamp > (zero_time + 43216):
         continue
     #if timestamp > (zero_time-1635):
     #    exit(1)
@@ -214,6 +202,7 @@ for line in infile:
 
 
     # valid data must be on campus
+    #if loc_id not in [0]:
     if loc_id not in [0, 1, 2, 3, 4]:
         continue
 

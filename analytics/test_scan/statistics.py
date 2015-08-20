@@ -11,6 +11,8 @@ def run_stats(folder):
             rssi_count = 0
             time_start = 0
             time_end = 0
+            time_prev = 0
+            time_list = []
             for line in f:
                 if line[0] == '#':
                     continue
@@ -18,7 +20,10 @@ def run_stats(folder):
                 timestamp = line.split('\t')[0]
                 if time_start == 0:
                     time_start = float(timestamp)
+                    time_prev = float(timestamp)
                 time_end = float(timestamp)
+                time_list.append(time_end-time_prev)
+                time_prev = time_end
 
                 rssi = line.split('\t')[2].split('\n')[0]
                 rssi_sum += float(rssi)
@@ -33,7 +38,14 @@ def run_stats(folder):
             else:
                 rssi_med = sorted(rssi_list)[len(rssi_list)/2]
 
-            print(str(filename) + ':\t' + str(duration) + '\t' + str(rssi_med))
+            time_avg = sum(time_list)/len(time_list)
+            time_med = 0
+            if len(time_list)%2 == 0:
+                time_med = ((time_list[len(time_list)/2] + time_list[len(time_list)/2+1]) / 2.0)
+            else:
+                time_med = time_list[len(time_list)/2]
+
+            print(str(filename) + ':\t' + str(duration) + '\t' + str(rssi_med) + '\t' + str(time_avg) + '\t' + str(time_med))
             #print(str(filename) + ':\t' + str(duration) + '\t' + str(rssi_avg) + '\t\t' + str(rssi_med))
 
 # print header

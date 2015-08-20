@@ -8,6 +8,7 @@ import sys
 import time
 import operator
 import dataprint
+import math
 
 label = ['']
 if len(sys.argv) >= 3:
@@ -17,8 +18,11 @@ if len(sys.argv) >= 4:
 if len(sys.argv) >= 5:
     label.append(sys.argv[4])
 
-training_start = 25200
-training_mode = False
+#training_start = 21600
+#training_end   = 43216.0
+training_start = 0
+training_end = 21600
+training_mode = True
 if len(sys.argv) >= 6:
     print("Training")
     training_mode = (sys.argv[5] == 'True')
@@ -126,7 +130,8 @@ for person in people:
             else:
                 wb_prev_data = transitions[person][timestamp][2]
             continue
-
+        if training_mode and timestamp > training_end:
+            break
 
         # record the time for the last period into proper bins
         total_time += timestamp-prev_time
@@ -273,6 +278,8 @@ for person in people:
 
     # loop over, add remaining data
     timestamp = 43216.0
+    if training_mode:
+        timestamp = training_end
     total_time += timestamp-prev_time
     if wb_prev_data == gt_prev_data:
         match_time += timestamp-prev_time
@@ -322,7 +329,8 @@ for person in people:
             avg_entry_latency, avg_exit_latency]
 
 
-total_time = 43216.0 + 1973.0 # = 45189
+# the complete duration is 45189
+total_time = 0
 missed_list = []
 missed_duration_list = []
 false_list = []
@@ -337,9 +345,14 @@ fpr_list = []
 #out_data = [['#label', 'uniqname', 'match_time', 'diff_time', 'accuracy',
 #        'true positive', 'true negative', 'false positive', 'false negative',
 #        'precision', 'recall', 'false positive rate']]
-valid_people = ['sarparis', 'samkuo', 'adkinsjd', 'brghena']
+#valid_people = ['sarparis', 'samkuo', 'adkinsjd', 'brghena']
+valid_people = ['brghena']
 if training_mode:
-    valid_people = ['samkuo', 'adkinsjd', 'brghena']
+    #valid_people = ['samkuo', 'adkinsjd', 'brghena']
+    valid_people = ['sarparis', 'samkuo', 'adkinsjd', 'brghena']
+    if len(sys.argv) >= 7:
+        valid_people = [sys.argv[6]]
+    print("Valid people = " + str(valid_people))
 for person in valid_people:
     (match_time, diff_time, total_time,
             match_lab_time, match_absent_time, diff_wb_lab_time, diff_wb_absent_time,
@@ -347,9 +360,16 @@ for person in valid_people:
             avg_entry_latency, avg_exit_latency) = stats[person]
 
     accuracy = match_time/total_time
-    precision = match_lab_time/(match_lab_time+diff_wb_lab_time)
-    recall = match_lab_time/(match_lab_time+diff_wb_absent_time)
-    false_positive_rate = diff_wb_lab_time/(diff_wb_lab_time+match_absent_time)
+    precision = -1
+    if match_lab_time != 0 or diff_wb_lab_time != 0:
+        precision = match_lab_time/(match_lab_time+diff_wb_lab_time)
+    recall = -1
+    if match_lab_time != 0 or diff_wb_absent_time != 0:
+        recall = match_lab_time/(match_lab_time+diff_wb_absent_time)
+    print(str(person) + ' ' + str(accuracy) + ' ' + str(precision) + ' ' + str(recall))
+    false_positive_rate = -1
+    if match_absent_time != 0 or diff_wb_lab_time != 0:
+        false_positive_rate = diff_wb_lab_time/(diff_wb_lab_time+match_absent_time)
     accuracy_list.append(accuracy)
     precision_list.append(precision)
     recall_list.append(recall)
@@ -402,8 +422,13 @@ def median(l):
     else:
         return l[len(l)/2]
 
+distance_val = math.sqrt((1 - sum(recall_list)/len(recall_list))**2 + 
+        (0 - sum(fpr_list)/len(fpr_list))**2)
+print("Distance:     " + str(distance_val))
+
 dataprint.to_newfile('accuracy.stats', [label +
-    [sum(accuracy_list)/len(accuracy_list), sum(precision_list)/len(precision_list),
+    [distance_val,
+        sum(accuracy_list)/len(accuracy_list), sum(precision_list)/len(precision_list),
         sum(recall_list)/len(recall_list), sum(fpr_list)/len(fpr_list),
         sum(false_list), median(false_duration_list),
         sum(missed_list), median(missed_duration_list),

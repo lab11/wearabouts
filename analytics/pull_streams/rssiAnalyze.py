@@ -55,8 +55,7 @@ def main( ):
 
     # open a file for data output
     dat_file = open('data_rssi.dat', 'w')
-    dat_file.write('#')
-    dataprint.to_file(dat_file, [['time', 'rssi', 'location id', 'location name']])
+    dataprint.to_file(dat_file, [['#time', 'rssi', 'location id', 'location name']])
 
     # print data to user every second
     last_print_time = 0
@@ -83,8 +82,8 @@ def main( ):
                     sys.exit(1)
 
         # print status to user
-        #if (time.time() - last_print_time) > 1:
-        if (num_packets%100) == 0 and num_packets != old_num_packets:
+        if (time.time() - last_print_time) > 1:
+        #if (num_packets%100) == 0 and num_packets != old_num_packets:
             old_num_packets = num_packets
             last_print_time = time.time()
             print(str(time.time() - start_time) + ' - Number of packets: ' + str(num_packets))
@@ -98,7 +97,8 @@ def main( ):
             continue
 
         # only save packets that correspond to the measured rooms
-        if pkt['location_str'].split('|')[-1] not in ['4908', '4901', '4670', '4916', '4776']:
+        loc = pkt['location_str'].split('|')[-1]
+        if loc not in ['4908', '4901', '4670', '4916', '4776']:
             continue
 
         # only save packets that correspond to real people
@@ -107,8 +107,8 @@ def main( ):
 
         # check for a specific BLE address
         #print(pkt['ble_addr'])
-        #if pkt['ble_addr'] != target_ble_addr:
-        #    continue
+        if pkt['ble_addr'] != target_ble_addr:
+            continue
 
         # print data to file
 

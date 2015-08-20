@@ -7,14 +7,30 @@
 command='training_allRooms_average'
 
 rm -f results.stats
+rm -f results_*.stats
 
-for i in 5 10 15 30 45 60 75 90 105 120 135 150 165 180; do
-    for j in `seq $((i/2)) -1 1`; do
+# full training
+#for i in 5 10 15 30 45 60 75 90 105 120 135 150 165 180; do
+#    for j in `seq $((i/2)) -1 1`; do
+# shorter training
+#for i in 30 45 60 75 90 105 120; do
+#    for j in `seq $((i/2)) -1 1`; do
+# test an individual point
+for i in 60; do
+    for j in 10; do
         echo $i $j
+        # wearabouts
         ./parse_$command.py $i -150 True $j
+        # threshold all rooms
+        #./parse_$command.py $i -150 False
         mv $command.dat wb_rssi_data.dat
-        ./determine_accuracy.py 'wb_rssi_data.dat' ${i} ${j} -150 True
-        cat accuracy.stats >> results.stats
+        # not training mode
+        #./determine_accuracy.py 'wb_rssi_data.dat' ${i} ${j} -150 False
+        # training mode
+        for k in 'adkinsjd' 'samkuo' 'brghena'; do
+            ./determine_accuracy.py 'wb_rssi_data.dat' ${i} ${j} -150 True ${k}
+            cat accuracy.stats >> results_$k.stats
+        done
     done
 done
 

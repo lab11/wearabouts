@@ -1,0 +1,16 @@
+*.pdf
+*.eps
+*.dat
+*.data
+*.date
+*.stats
+*.mp4
+*.unsorted
+*.xlsx
+*.packets
+*.config
+config.py
+config.js
+config.json
+*.png
+*.txt
