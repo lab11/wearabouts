@@ -73,14 +73,14 @@ def main():
     threads.append(RabbitMQPoster('experimental.rfid.id_str', post_queue, log=log))
 
     # start RFID reader
-    reader  = RFIDReader(ser, post_queue, threads, log)
-    #while True:
-    #    try:
-    #        generator.run()
-    #    except Exception as e:
-    #        log.error(curr_datetime() + "ERROR - RFIDReader: " + str(e))
-    #        log.error(traceback.format_exc())
-    reader.run()
+    reader = RFIDReader(ser, post_queue, threads, log)
+    while True:
+        try:
+            reader.run()
+        except Exception as e:
+            print(curr_datetime() + "ERROR - RFIDReader: " + str(e))
+            log.error(curr_datetime() + "ERROR - RFIDReader: " + str(e))
+            log.error(traceback.format_exc())
 
 
 class RFIDReader ():
