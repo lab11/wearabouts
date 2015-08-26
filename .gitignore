@@ -9,3 +9,4 @@ node_modules
 config.py
 config.js
 config.json
+rfid_config.py
