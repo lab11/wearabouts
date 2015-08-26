@@ -51,6 +51,7 @@ def main( ):
     while True:
         for thread in threads:
             if thread and not thread.isAlive():
+                print(curr_datetime() + "ERROR - thread died")
                 log.error(curr_datetime() + "ERROR - thread died")
                 sys.exit(1)
 

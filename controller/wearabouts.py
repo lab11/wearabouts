@@ -272,8 +272,10 @@ class PresenceController ():
     scanner_mapping = {
             '1C:BA:8C:ED:ED:2A': ('University of Michigan|BBB|4908', '0'),
             '1C:BA:8C:9B:BC:57': ('University of Michigan|BBB|4901', '1'),
-            'D0:39:72:4B:AD:14': ('University of Michigan|BBB|4670', '2'),
-            '6C:EC:EB:A5:98:E2': ('University of Michigan|BBB|4916', '3'),
+            #'D0:39:72:4B:AD:14': ('University of Michigan|BBB|4670', '2'),
+            'D0:5F:B8:FE:47:BB': ('University of Michigan|BBB|4670', '2'),
+            #'6C:EC:EB:A5:98:E2': ('University of Michigan|BBB|4916', '3'),
+            'D0:39:72:30:71:3E': ('University of Michigan|BBB|4916', '3'),
             '1C:BA:8C:ED:E0:B2': ('University of Michigan|BBB|4776', '4'),
             '6C:EC:EB:9F:70:53': ('USA|Michigan|Ann Arbor|1929 Plymouth', '5')
             }
