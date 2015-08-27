@@ -96,26 +96,37 @@ class GroundTruth ():
             # allow control signals to override possible errors
             if data_type == 'control':
 
-                # test packet
-                if pkt['location_str'] not in self.rooms:
-                    continue
-
-                # control packet good
+                # control packets always good
                 self.last_data = time.time()
+
+                # add a new room if necessary
+                if pkt['location_str'] != 'None' and pkt['location_str'] not in self.rooms:
+                    self.rooms[pkt['location_str']] = []
                 location = self.rooms[pkt['location_str']]
 
+                # add a new person if necessary
+                if pkt['uniqname'] != 'None' and pkt['uniqname'] not in self.people:
+                    self.people[pkt['uniqname']] = {
+                            'location_id': -1,
+                            'location_str': 'None',
+                            'full_name': pkt['full_name']
+                            }
+
                 if pkt['command'] == 'add':
-                    location.append(pkt['data'])
+                    for room in self.rooms:
+                        if pkt['uniqname'] in self.rooms[room]:
+                            self.rooms[room].remove(pkt['uniqname'])
+                    location.append(pkt['uniqname'])
                     person = self.people[pkt['uniqname']]
                     person['location_str'] = pkt['location_str']
                     person['location_id'] = pkt['location_id']
 
                 elif pkt['command'] == 'remove':
-                    if pkt['data'] in location:
-                        location.remove(pkt['data'])
-                    person = self.people[pkt['uniqname']]
-                    person['location_str'] = 'None'
-                    person['location_id'] = -1
+                    if pkt['uniqname'] in location:
+                        location.remove(pkt['uniqname'])
+                        person = self.people[pkt['uniqname']]
+                        person['location_str'] = 'None'
+                        person['location_id'] = -1
 
                 elif pkt['command'] == 'empty':
                     self.rooms[pkt['location_str']] = []
@@ -162,7 +173,6 @@ class GroundTruth ():
             # add a new room if necessary
             if pkt['location_str'] not in self.rooms:
                 self.rooms[pkt['location_str']] = []
-            location = self.rooms[pkt['location_str']]
 
             # add a new person if necessary
             if pkt['uniqname'] not in self.people:
@@ -171,6 +181,8 @@ class GroundTruth ():
                         'location_str': 'None',
                         'full_name': pkt['full_name']
                         }
+
+            location = self.rooms[pkt['location_str']]
             person = self.people[pkt['uniqname']]
 
             # check if individual is in room
@@ -201,8 +213,8 @@ class GroundTruth ():
             self.update_screen()
 
     def update_screen(self):
-        # only update once per second at most
-        if (time.time() - self.last_update) > 1:
+        # update as fast as possible. Packets don't come in that fast anyways
+        if True or (time.time() - self.last_update) > 1:
             self.last_update = time.time()
 
             # clear terminal screen
