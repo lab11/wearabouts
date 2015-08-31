@@ -809,6 +809,9 @@ class RabbitMQPoster(Thread):
             print('Cannot find config file. Need symlink from shed')
             sys.exit(1)
 
+        # open a file to write to. Line buffered
+        self.outfile = open('data/wearaboutsData.pkts', 'a', 1)
+
         while True:
             try:
                 # Get a blocking connection to the rabbitmq
@@ -825,6 +828,9 @@ class RabbitMQPoster(Thread):
                 while True:
                     # look for a packet
                     (data, route) = self.msg_queue.get()
+
+                    # write data out to file
+                    self.outfile.write(str(json.dumps(data)) + '\n')
 
                     # post to RabbitMQ
                     #print("\tPosting to route: " + self.route_key+'.'+route.replace(' ', '_').replace('|', '.') + '\n\t' + str(data))

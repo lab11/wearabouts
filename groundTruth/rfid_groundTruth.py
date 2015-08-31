@@ -313,9 +313,15 @@ class RabbitMQPoster(Thread):
         # open connection before starting
         self._open_connection()
 
+        # open a file to write to. Line buffered
+        self.outfile = open('data/groundTruth.pkts', 'a', 1)
+
         while True:
             # look for a packet
             (data, route) = self.msg_queue.get()
+
+            # write data out to file
+            self.outfile.write(str(json.dumps(data)) + '\n')
 
             # post to RabbitMQ
             try:
