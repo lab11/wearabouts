@@ -8,6 +8,7 @@
 *.unsorted
 *.xlsx
 *.packets
+*.pkts
 *.config
 config.py
 config.js
