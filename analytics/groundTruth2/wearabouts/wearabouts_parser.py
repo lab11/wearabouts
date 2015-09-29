@@ -74,7 +74,7 @@ for line in infile:
 
     # generate time data for this line
     curr_time = time.strftime('%H:%M:%S', time.localtime(data['present_since']))
-    diff_seconds = int(float(data['present_since']) - start_timestamp)
+    diff_seconds = float(data['present_since']) - start_timestamp
     time_data = [curr_time, diff_seconds]
     # error check
     if diff_seconds < prev_diff_seconds:
