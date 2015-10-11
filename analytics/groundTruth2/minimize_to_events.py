@@ -8,7 +8,8 @@ import dataprint
 data_files = [('camera/camera_parsed.dat', 'camera/camera_minimized.dat'),
         ('rfid/rfid_parsed.dat', 'rfid/rfid_minimized.dat'),
         ('wearabouts/wearabouts_parsed.dat', 'wearabouts/wearabouts_minimized.dat'),
-        ('amalgamated_truth/first_amalgamated_dataset.dat', 'amalgamated_truth/amalgamated_plottable.dat'),
+        ('amalgamated_truth/first_amalgamated_dataset.dat', 'amalgamated_truth/amalgamated_minimized.dat'),
+        ('accuracy/results/assembled_errors.dat', 'accuracy/results/assembled_errors_minimized.dat'),
         ]
 
 for filenames in data_files:

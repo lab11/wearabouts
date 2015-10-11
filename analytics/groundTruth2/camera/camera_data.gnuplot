@@ -33,15 +33,15 @@ set ytics nomirror \
         "Absent" 8.5, "sdebruin" 9, "Present" 9.5)
 set yrange [0:10]
 
-plot data_file u ($2):(($4==0?1:0)+0.5) w l ls 16 title "4908 camera", \
+plot data_file u ($2):(($4==0?1:0)+0.5) w l ls 6 title "4908 camera", \
     \
-    data_file u ($2):(($3==0?1:0)+2.5) w l ls 16 notitle, \
+    data_file u ($2):(($3==0?1:0)+2.5) w l ls 6 notitle, \
     \
-    data_file u ($2):(($5==0?1:0)+4.5) w l ls 16 notitle, \
+    data_file u ($2):(($5==0?1:0)+4.5) w l ls 6 notitle, \
     \
-    data_file u ($2):(($6==0?1:0)+6.5) w l ls 16 notitle, \
+    data_file u ($2):(($6==0?1:0)+6.5) w l ls 6 notitle, \
     \
-    data_file u ($2):(($9==0?1:0)+8.5) w l ls 16 notitle, \
+    data_file u ($2):(($9==0?1:0)+8.5) w l ls 6 notitle, \
     \
 
 #plot 'ground_truth_parsed.dat' u ($2):(($3==0?1:0)+6.5) w l ls 6 title "ground truth", \

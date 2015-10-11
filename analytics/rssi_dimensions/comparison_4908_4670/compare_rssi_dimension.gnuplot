@@ -37,10 +37,10 @@ set arrow nohead from -100,-100 to -60,-60 lt 2 lc rgb "grey"
 
 set output "compare_rssi_dimension.eps"
 plot \
-    data_4670 u ($2+0.1):($4) w p ls 13 title "User in 4670", \
-    data_4908 u ($2-0.1):($4) w p ls 16 title "User in 4908", \
-    avg_4670  u ($2):($4+0.1) w p ls 23 title "User in 4670", \
-    avg_4908  u ($2):($4-0.1) w p ls 26 title "User in 4908", \
+    data_4670 u ($2+0.1):($4) w p ls 13 title "Raw in 4670", \
+    data_4908 u ($2-0.1):($4) w p ls 16 title "Raw in 4908", \
+    avg_4670  u ($2):($4+0.1) w p ls 23 title "Avg in 4670", \
+    avg_4908  u ($2):($4-0.1) w p ls 26 title "Avg in 4908", \
 
 set output "compare_rssi_dimension_raw.eps"
 plot \

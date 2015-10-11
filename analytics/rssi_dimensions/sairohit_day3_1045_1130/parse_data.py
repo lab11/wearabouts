@@ -15,6 +15,7 @@ scanner_mapping = {
 infile = open('gatd_extract.dat', 'r')
 outfile = open('rssi_view.dat', 'w')
 
+unique_packets = 0
 occurances = [0, 0, 0, 0]
 pkt_group = [{'time': -1000000}]
 out_data = []
@@ -46,10 +47,17 @@ for line in infile:
             out_data.append(group_data)
 
         # pkt group should always include this point
+        unique_packets += 1
         pkt_group = [data]
 
 
-print("Total: " + str(occurances))
+print("Unique packets:  " + str(unique_packets))
+print("Double detected: " + str(occurances[0]))
+print("Triple detected: " + str(occurances[1]))
+print("Quad   detected: " + str(occurances[2]))
+print("Quint  detected: " + str(occurances[3]))
+print("")
+print("Multiply detected: " + str(sum(occurances)/float(unique_packets)*100) + ' %')
 dataprint.to_file(outfile, out_data)
 
 outfile.close()

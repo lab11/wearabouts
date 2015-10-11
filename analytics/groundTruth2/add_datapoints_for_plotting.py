@@ -9,6 +9,7 @@ data_files = [('camera/camera_parsed.dat', 'camera/camera_plottable.dat'),
         ('rfid/rfid_parsed.dat', 'rfid/rfid_plottable.dat'),
         ('wearabouts/wearabouts_parsed.dat', 'wearabouts/wearabouts_plottable.dat'),
         ('amalgamated_truth/first_amalgamated_dataset.dat', 'amalgamated_truth/amalgamated_plottable.dat'),
+        ('accuracy/results/assembled_errors.dat', 'accuracy/results/assembled_errors_plottable.dat'),
         ]
 
 time_quanta = 0.000001
